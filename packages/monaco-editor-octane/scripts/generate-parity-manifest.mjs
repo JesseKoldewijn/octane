@@ -45,10 +45,7 @@ function upstreamIntegrity() {
 	return `sha256:${hash.digest('hex')}`;
 }
 
-const TEST_ROOTS = [
-	'packages/monaco-editor-octane/tests/upstream',
-	'packages/monaco-editor-octane/tests/harness',
-];
+const TEST_ROOTS = ['packages/monaco-editor-octane/tests/upstream'];
 const DIFFERENTIAL_ROOTS = ['packages/monaco-editor-octane/tests/differential'];
 
 function writeInventory(project, ownedPrefixes, inventoryRelative) {
@@ -105,7 +102,7 @@ const differentialInventoryRel = 'packages/monaco-editor-octane/audit/differenti
 
 const adaptedInventory = writeInventory(
 	'monaco-editor-octane',
-	['packages/monaco-editor-octane/tests/upstream', 'packages/monaco-editor-octane/tests/harness'],
+	['packages/monaco-editor-octane/tests/upstream'],
 	adaptedInventoryRel,
 );
 const differentialInventory = writeInventory(
@@ -183,10 +180,7 @@ const manifest = {
 			exclude: [],
 		},
 		tests: {
-			roots: [
-				'packages/monaco-editor-octane/tests/upstream',
-				'packages/monaco-editor-octane/tests/harness',
-			],
+			roots: ['packages/monaco-editor-octane/tests/upstream'],
 			include: ['\\.(?:test|spec)\\.(?:[cm]?[jt]s|[jt]sx|tsrx)$'],
 			exclude: [],
 		},
@@ -309,7 +303,7 @@ const manifest = {
 	divergences: [
 		{
 			id: 'container-ref',
-			caseIds: ['adapted:f2157eaed5', 'adapted:2ff386bb71'],
+			caseIds: ['adapted:f2157eaed5'],
 			upstreamResult: 'Internal MonacoContainer accepts _ref',
 			octaneResult: 'Internal MonacoContainer accepts Octane ref',
 			rationale: 'Octane has no forwardRef; refs are ordinary props.',

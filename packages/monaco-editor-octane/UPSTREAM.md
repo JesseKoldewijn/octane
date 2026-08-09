@@ -66,6 +66,19 @@ Every runtime and type export of `src/index.ts` at the pin.
 
 Upstream ships **no type tests**. Both type lanes are port-authored.
 
+## Port-authored test classification
+
+| File | Classification | Pairing |
+| --- | --- | --- |
+| `tests/upstream/*.test.ts` | adapted upstream | re-authors upstream RTL snapshot / lifecycle cases |
+| `tests/differential/parity.test.ts` | React/Octane differential | pinned `@monaco-editor/react@4.8.0-rc.3` |
+| `tests/ssr/ssr.test.ts` | Octane-only framework contract | unpaired — upstream ships no SSR suite |
+| `tests/hydration/hydration.test.ts` | Octane-only framework contract | unpaired — hydration adoption is Octane's |
+| `tests/unit/utils.test.ts` | Octane-only package contract | unpaired |
+| `tests/browser/editor.browser.test.ts` | Octane-only browser contract | unpaired — real Monaco + workers |
+| `tests/harness/negative-controls.test.ts` | harness negative controls | unpaired — inventory titles / divergence citation; not adapted-lane evidence |
+| `typetests/{pristine,adapted}/types.test-d.ts` | port-authored type lanes | paired with each other through `typetests/assertions.md` |
+
 ## Evidence lanes
 
 - Adapted upstream shell/lifecycle suites (mocked loader + monaco doubles), including

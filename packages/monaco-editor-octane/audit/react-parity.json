@@ -22,17 +22,14 @@
       "exclude": []
     },
     "tests": {
-      "roots": [
-        "packages/monaco-editor-octane/tests/upstream",
-        "packages/monaco-editor-octane/tests/harness"
-      ],
+      "roots": ["packages/monaco-editor-octane/tests/upstream"],
       "include": ["\\.(?:test|spec)\\.(?:[cm]?[jt]s|[jt]sx|tsrx)$"],
       "exclude": []
     }
   },
   "adaptedRuntimeSummary": {
-    "inventoryEntries": 27,
-    "uniqueIdentities": 27,
+    "inventoryEntries": 24,
+    "uniqueIdentities": 24,
     "duplicateEntriesWithinLanes": 0,
     "identitiesSharedAcrossLanes": 0
   },
@@ -63,29 +60,7 @@
         {
           "path": "packages/monaco-editor-octane/audit/adapted-runtime.json",
           "role": "support",
-          "sha256": "6e0fc98c344dd82f87a9c3902147fdf45b3fadaefc920b00b82ea7b87ff94212"
-        },
-        {
-          "path": "packages/monaco-editor-octane/tests/harness/negative-controls.test.ts",
-          "role": "test",
-          "sha256": "f1fe7c776c7af6a182bd652e351bc8966efff6ec05fbd6338ecd9c690daabfb2",
-          "cases": [
-            {
-              "id": "adapted:e4ec416a4f",
-              "testName": "fails validation when an upstream case title is removed (simulated)",
-              "fullName": "monaco-editor-octane parity harness negatives fails validation when an upstream case title is removed (simulated)"
-            },
-            {
-              "id": "adapted:f50ec657c1",
-              "testName": "keeps every adapted Loading upstream case name",
-              "fullName": "monaco-editor-octane parity harness negatives keeps every adapted Loading upstream case name"
-            },
-            {
-              "id": "adapted:2ff386bb71",
-              "testName": "records MonacoContainer ref divergence citation",
-              "fullName": "monaco-editor-octane parity harness negatives records MonacoContainer ref divergence citation"
-            }
-          ]
+          "sha256": "bb48ff1db8a093cfbf50ec3dd27bc604d3a6ac206c4e1710374eb4cb35ca4224"
         },
         {
           "path": "packages/monaco-editor-octane/tests/upstream/diff-editor-shell.test.ts",
@@ -412,7 +387,7 @@
   "divergences": [
     {
       "id": "container-ref",
-      "caseIds": ["adapted:f2157eaed5", "adapted:2ff386bb71"],
+      "caseIds": ["adapted:f2157eaed5"],
       "upstreamResult": "Internal MonacoContainer accepts _ref",
       "octaneResult": "Internal MonacoContainer accepts Octane ref",
       "rationale": "Octane has no forwardRef; refs are ordinary props.",

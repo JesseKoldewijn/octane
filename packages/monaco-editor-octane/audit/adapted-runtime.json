@@ -1,12 +1,8 @@
 {
   "schemaVersion": 1,
   "project": "monaco-editor-octane",
-  "roots": [
-    "packages/monaco-editor-octane/tests/upstream",
-    "packages/monaco-editor-octane/tests/harness"
-  ],
+  "roots": ["packages/monaco-editor-octane/tests/upstream"],
   "files": [
-    "packages/monaco-editor-octane/tests/harness/negative-controls.test.ts",
     "packages/monaco-editor-octane/tests/upstream/diff-editor-shell.test.ts",
     "packages/monaco-editor-octane/tests/upstream/diff-lifecycle.test.ts",
     "packages/monaco-editor-octane/tests/upstream/editor-lifecycle.test.ts",
@@ -16,24 +12,6 @@
     "packages/monaco-editor-octane/tests/upstream/use-monaco.test.ts"
   ],
   "tests": [
-    {
-      "id": "adapted:e4ec416a4f",
-      "file": "packages/monaco-editor-octane/tests/harness/negative-controls.test.ts",
-      "testName": "fails validation when an upstream case title is removed (simulated)",
-      "fullName": "monaco-editor-octane parity harness negatives fails validation when an upstream case title is removed (simulated)"
-    },
-    {
-      "id": "adapted:f50ec657c1",
-      "file": "packages/monaco-editor-octane/tests/harness/negative-controls.test.ts",
-      "testName": "keeps every adapted Loading upstream case name",
-      "fullName": "monaco-editor-octane parity harness negatives keeps every adapted Loading upstream case name"
-    },
-    {
-      "id": "adapted:2ff386bb71",
-      "file": "packages/monaco-editor-octane/tests/harness/negative-controls.test.ts",
-      "testName": "records MonacoContainer ref divergence citation",
-      "fullName": "monaco-editor-octane parity harness negatives records MonacoContainer ref divergence citation"
-    },
     {
       "id": "adapted:c350d9f1e0",
       "file": "packages/monaco-editor-octane/tests/upstream/diff-editor-shell.test.ts",
