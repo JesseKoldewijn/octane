@@ -102,7 +102,7 @@
         {
           "path": "packages/monaco-editor-octane/tests/upstream/diff-lifecycle.test.ts",
           "role": "test",
-          "sha256": "d42ab46d3fca9e17835dfd1428f79529ca99eb3d1c19a167eacaafce0da139b5",
+          "sha256": "5ffcc463ff69d5c8a5359f6abf776f4360d966bd197c5fe6c520cdaab2a3c5bb",
           "cases": [
             {
               "id": "adapted:4c531229c1",

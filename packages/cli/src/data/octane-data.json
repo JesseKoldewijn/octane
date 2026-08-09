@@ -319,7 +319,8 @@
         "loading accepts OctaneNode | string instead of React.ReactNode.",
         "Internal MonacoContainer uses Octane ref on the host div; upstream's private _ref prop is not carried forward.",
         "'use client' directives are omitted; editors remain browser-only via effects.",
-        "CSS style objects use plain records rather than React.CSSProperties."
+        "CSS style objects use plain records rather than React.CSSProperties.",
+        "DiffEditor dispose clears editorRef / preventCreation / isEditorReady like Editor; upstream DiffEditor at the pin still omits that remount-safe reset."
       ],
       "ssr": "Supported and tested: Editor/DiffEditor server-render the loading shell (section + Loading) and do not call loader.init or monaco.editor.create on the server. hydrateRoot adopts that shell; client effects run init afterward.",
       "verified": "2026-08-09"
