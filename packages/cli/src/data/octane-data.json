@@ -902,6 +902,7 @@
     "@livestore/react": "@octanejs/livestore",
     "@mantine/hooks": "@octanejs/mantine-hooks",
     "@mdx-js/react": "@octanejs/mdx",
+    "@monaco-editor/react": "@octanejs/monaco-editor-octane",
     "@phosphor-icons/react": "@octanejs/phosphor-icons",
     "@rainbow-me/rainbowkit": "@octanejs/rainbowkit",
     "@react-rxjs/core": "@octanejs/rxjs",
