@@ -214,7 +214,7 @@
         {
           "path": "packages/monaco-editor-octane/tests/_mocks/loader.ts",
           "role": "support",
-          "sha256": "7f47ee56553bc4ccaec3602e819f5c6e4471135631679646eddc8cde94ba0d40"
+          "sha256": "cca9f3298df48ad2ed0e4ef549bb2aa4c6ba72c83405b73338bea6702a8487c2"
         },
         {
           "path": "packages/monaco-editor-octane/tests/_mocks/monaco.ts",
@@ -327,7 +327,7 @@
         {
           "path": "packages/monaco-editor-octane/tests/differential/parity.test.ts",
           "role": "test",
-          "sha256": "949fcf3d538a2b02d5b1fe81c53022a4883dd5b15c798538d4d7fcd7f6da8c8b",
+          "sha256": "414e8e3a6d91069a02174324d579c99d7afee2aa28429fd08b3a122b48b3692e",
           "cases": [
             {
               "id": "differential:3d1e46413d",

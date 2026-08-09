@@ -667,6 +667,7 @@ describe('manifest-declared manual hook slots', () => {
 			'lucide',
 			'mdx',
 			'mobx',
+			'monaco-editor-octane',
 			'motion',
 			'phosphor-icons',
 			'radix',

@@ -75,11 +75,15 @@ describe('differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4
 
 	// @parity-case differential:3fc3dcb918
 	it('renders matching useMonaco pending markup before init', async () => {
+		// Hold loader.init so observe cannot race the microtask that would flip
+		// both sides to "ready" under a busy full-suite schedule.
+		loader.__reset({ holdInit: true });
 		const differential = await mountDifferential(EDITOR_FIXTURE, 'UseMonacoDiff', {}, CACHE);
 		await differential.observe('useMonaco pending', (octaneMount, reactMount) => {
 			expect(octaneMount.container.textContent).toBe(reactMount.container.textContent);
 			expect(octaneMount.container.textContent).toBe('pending');
 		});
 		differential.unmount();
+		loader.__releaseInit();
 	});
 });
