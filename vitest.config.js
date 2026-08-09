@@ -2585,6 +2585,118 @@ export default defineConfig({
 					hookTimeout: 60_000,
 				},
 			},
+
+			{
+				testExecution: {
+					group: 'react-parity',
+					include: ['packages/monaco-editor-octane/tests/upstream/**/*.test.ts'],
+				},
+				test: {
+					name: 'monaco-editor-octane',
+					include: ['packages/monaco-editor-octane/tests/**/*.test.ts'],
+					exclude: [
+						...configDefaults.exclude,
+						'packages/monaco-editor-octane/tests/differential/**/*.test.ts',
+						'packages/monaco-editor-octane/tests/ssr/**/*.test.ts',
+						'packages/monaco-editor-octane/tests/browser/**/*.test.ts',
+					],
+					environment: 'jsdom',
+					globals: false,
+					testTimeout: 30_000,
+					hookTimeout: 30_000,
+				},
+				plugins: [octane()],
+				resolve: {
+					alias: [
+						{
+							find: /^@monaco-editor\/loader$/,
+							replacement: resolve(
+								import.meta.dirname,
+								'packages/monaco-editor-octane/tests/_mocks/loader.ts',
+							),
+						},
+						{
+							find: /^@octanejs\/monaco-editor-octane$/,
+							replacement: resolve(
+								import.meta.dirname,
+								'packages/monaco-editor-octane/src/index.ts',
+							),
+						},
+					],
+				},
+			},
+			{
+				test: {
+					name: 'monaco-editor-octane-ssr',
+					include: ['packages/monaco-editor-octane/tests/ssr/**/*.test.ts'],
+					environment: 'node',
+					globals: false,
+				},
+				plugins: [octane({ ssr: true })],
+				resolve: {
+					alias: [
+						{
+							find: /^@monaco-editor\/loader$/,
+							replacement: resolve(
+								import.meta.dirname,
+								'packages/monaco-editor-octane/tests/_mocks/loader.ts',
+							),
+						},
+						{
+							find: /^octane$/,
+							replacement: resolve(import.meta.dirname, 'packages/octane/src/server/index.ts'),
+						},
+						{
+							find: /^@octanejs\/monaco-editor-octane$/,
+							replacement: resolve(
+								import.meta.dirname,
+								'packages/monaco-editor-octane/src/index.ts',
+							),
+						},
+					],
+				},
+			},
+			{
+				testExecution: { group: 'react-parity' },
+				test: {
+					name: 'monaco-editor-octane-differential',
+					include: ['packages/monaco-editor-octane/tests/differential/**/*.test.ts'],
+					environment: 'jsdom',
+					globalSetup: ['packages/monaco-editor-octane/tests/differential/_setup.ts'],
+					globals: false,
+					testTimeout: 30_000,
+					hookTimeout: 30_000,
+				},
+				plugins: [octane()],
+				resolve: {
+					alias: [
+						{
+							find: /^@monaco-editor\/loader$/,
+							replacement: resolve(
+								import.meta.dirname,
+								'packages/monaco-editor-octane/tests/_mocks/loader.ts',
+							),
+						},
+						{
+							find: /^@octanejs\/monaco-editor-octane$/,
+							replacement: resolve(
+								import.meta.dirname,
+								'packages/monaco-editor-octane/src/index.ts',
+							),
+						},
+					],
+				},
+			},
+			{
+				test: {
+					name: 'monaco-editor-octane-browser',
+					include: ['packages/monaco-editor-octane/tests/browser/**/*.test.ts'],
+					environment: 'node',
+					globals: false,
+					testTimeout: 60_000,
+					hookTimeout: 60_000,
+				},
+			},
 			{
 				test: {
 					name: 'stylex',

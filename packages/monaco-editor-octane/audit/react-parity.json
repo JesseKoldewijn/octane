@@ -1,0 +1,388 @@
+{
+  "$schema": "../../hook-form/audit/react-parity.schema.json",
+  "schemaVersion": 1,
+  "provenance": {
+    "repo": "https://github.com/suren-atoyan/monaco-react.git",
+    "version": "4.8.0-rc.3",
+    "commit": "f7ef2e686c83449babaea49815c69db3668d2ab7",
+    "sourceRoot": "src",
+    "testRoot": "src",
+    "license": "MIT",
+    "integrity": "sha256:68b5109241d224a88b76f8a66f302698a5e9a7f10a3bd92a0ace6345082440af",
+    "verification": "verified"
+  },
+  "upstreamSuites": {
+    "runtime": "absent",
+    "types": "absent"
+  },
+  "adaptedRoots": {
+    "source": {
+      "roots": ["packages/monaco-editor-octane/src"],
+      "include": ["\\.(?:[cm]?[jt]s|[jt]sx|tsrx)$"],
+      "exclude": []
+    },
+    "tests": {
+      "roots": [
+        "packages/monaco-editor-octane/tests/upstream",
+        "packages/monaco-editor-octane/tests/harness"
+      ],
+      "include": ["\\.(?:test|spec)\\.(?:[cm]?[jt]s|[jt]sx|tsrx)$"],
+      "exclude": []
+    }
+  },
+  "adaptedRuntimeSummary": {
+    "inventoryEntries": 17,
+    "uniqueIdentities": 17,
+    "duplicateEntriesWithinLanes": 0,
+    "identitiesSharedAcrossLanes": 0
+  },
+  "environments": {
+    "workspace-node": {
+      "node": ">=22",
+      "platform": "any",
+      "arch": "any",
+      "packageManager": "pnpm@11.15.1",
+      "lockfile": "pnpm-lock.yaml",
+      "lockfileSha256": "2f2b3cc6fd451ce4cd4fef2966f163fd84919731403bad5481d3080a9a4e74ee"
+    }
+  },
+  "lanes": [
+    {
+      "id": "monaco-editor-octane-adapted",
+      "type": "adapted-octane",
+      "oracle": "required",
+      "environment": "workspace-node",
+      "project": "monaco-editor-octane",
+      "evidenceOrigin": "repo-authored",
+      "notes": "Adapted upstream snapshot cases plus port-authored lifecycle/useMonaco coverage against the monaco/loader doubles. Upstream React RTL snapshots are not runnable pristine against Octane.",
+      "execution": {
+        "kind": "vitest-full",
+        "inventory": "packages/monaco-editor-octane/audit/adapted-runtime.json"
+      },
+      "files": [
+        {
+          "path": "packages/monaco-editor-octane/audit/adapted-runtime.json",
+          "role": "support",
+          "sha256": "5c53044b724bc5639587e4486afd42019aadb58250a8353ec4ea06817c148047"
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/harness/negative-controls.test.ts",
+          "role": "test",
+          "sha256": "f1fe7c776c7af6a182bd652e351bc8966efff6ec05fbd6338ecd9c690daabfb2",
+          "cases": [
+            {
+              "id": "adapted:e4ec416a4f",
+              "testName": "fails validation when an upstream case title is removed (simulated)",
+              "fullName": "monaco-editor-octane parity harness negatives fails validation when an upstream case title is removed (simulated)"
+            },
+            {
+              "id": "adapted:f50ec657c1",
+              "testName": "keeps every adapted Loading upstream case name",
+              "fullName": "monaco-editor-octane parity harness negatives keeps every adapted Loading upstream case name"
+            },
+            {
+              "id": "adapted:2ff386bb71",
+              "testName": "records MonacoContainer ref divergence citation",
+              "fullName": "monaco-editor-octane parity harness negatives records MonacoContainer ref divergence citation"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/upstream/diff-editor-shell.test.ts",
+          "role": "test",
+          "sha256": "49f0add6306970b3270a92e89fdebabf3d2d86422f8a3ea2e115596824e39110",
+          "cases": [
+            {
+              "id": "adapted:c350d9f1e0",
+              "testName": "should check render with snapshot",
+              "fullName": "<DiffEditor /> should check render with snapshot"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/upstream/diff-lifecycle.test.ts",
+          "role": "test",
+          "sha256": "a2e78648dcacbe53e10ce51e3ce1851d25ade25da8680d006b68eead37516bd3",
+          "cases": [
+            {
+              "id": "adapted:b132df9018",
+              "testName": "creates a diff editor and reports onMount",
+              "fullName": "DiffEditor lifecycle creates a diff editor and reports onMount"
+            },
+            {
+              "id": "adapted:ca39744630",
+              "testName": "updates modified content from props",
+              "fullName": "DiffEditor lifecycle updates modified content from props"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/upstream/editor-lifecycle.test.ts",
+          "role": "test",
+          "sha256": "046af0350702b25ee204815632b27e25ed19c4fe145410f002ae6fc075d27910",
+          "cases": [
+            {
+              "id": "adapted:c4d6ff1c6a",
+              "testName": "calls onMount after monaco init and editor.create",
+              "fullName": "Editor lifecycle calls onMount after monaco init and editor.create"
+            },
+            {
+              "id": "adapted:f1eb7c31d0",
+              "testName": "disposes editor on unmount and allows remount",
+              "fullName": "Editor lifecycle disposes editor on unmount and allows remount"
+            },
+            {
+              "id": "adapted:47b1162701",
+              "testName": "fires onChange for model content edits",
+              "fullName": "Editor lifecycle fires onChange for model content edits"
+            },
+            {
+              "id": "adapted:e27f5a89fe",
+              "testName": "keeps model when keepCurrentModel is true",
+              "fullName": "Editor lifecycle keeps model when keepCurrentModel is true"
+            },
+            {
+              "id": "adapted:e453d061c4",
+              "testName": "syncs controlled value without firing onChange",
+              "fullName": "Editor lifecycle syncs controlled value without firing onChange"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/upstream/editor-shell.test.ts",
+          "role": "test",
+          "sha256": "7e51f7da1cee8ee36421ceb7e5d551ce6ac1f098cd990d3c2683e84b01fe5dbb",
+          "cases": [
+            {
+              "id": "adapted:f09a73a646",
+              "testName": "should check render with snapshot",
+              "fullName": "<Editor /> should check render with snapshot"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/upstream/loading.test.ts",
+          "role": "test",
+          "sha256": "6f41c7b2b851060933832e36c6977e4eda97e22dacf57a3969ebacbfac483f9b",
+          "cases": [
+            {
+              "id": "adapted:88ba64aa27",
+              "testName": "should check content",
+              "fullName": "<Loading /> should check content"
+            },
+            {
+              "id": "adapted:fd6f96e4b6",
+              "testName": "should check is it wrapped with <div />",
+              "fullName": "<Loading /> should check is it wrapped with <div />"
+            },
+            {
+              "id": "adapted:9d289754cd",
+              "testName": "should check render with snapshot",
+              "fullName": "<Loading /> should check render with snapshot"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/upstream/monaco-container.test.ts",
+          "role": "test",
+          "sha256": "9412c3e1394ad0ca5987b3e4b06c88ddc30c80b1a0d2a7199c710cd8f7f6766c",
+          "cases": [
+            {
+              "id": "adapted:f2157eaed5",
+              "testName": "should check render with snapshot",
+              "fullName": "<MonacoContainer /> should check render with snapshot"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/upstream/use-monaco.test.ts",
+          "role": "test",
+          "sha256": "7b94275854038d46ad12a4f58466009f1e6bb971bf141041942a18247abb684b",
+          "cases": [
+            {
+              "id": "adapted:a3baf63022",
+              "testName": "is null until loader.init resolves, then returns the instance",
+              "fullName": "useMonaco is null until loader.init resolves, then returns the instance"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/_helpers.ts",
+          "role": "support",
+          "sha256": "6b016ea0a82b03ce38c008708ddbe0c7c4a5130fbc462b6dbf8ed6bb5fc2e71d"
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/_mocks/loader.ts",
+          "role": "support",
+          "sha256": "7f47ee56553bc4ccaec3602e819f5c6e4471135631679646eddc8cde94ba0d40"
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/_mocks/monaco.ts",
+          "role": "support",
+          "sha256": "2a999fd9179c5beeead661d0eefcbe7efdc2726ad5ea7568e0a05a5414f4fe80"
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/_fixtures/upstream.tsrx",
+          "role": "support",
+          "sha256": "880ae873d8e0da9a0554c7f077963fd8ff440d4f82223a135b5eb3e8a8fb1e99"
+        }
+      ]
+    },
+    {
+      "id": "monaco-editor-octane-pristine-types",
+      "type": "pristine-types",
+      "oracle": "required",
+      "available": true,
+      "environment": "workspace-node",
+      "project": "monaco-editor-octane-pristine-types",
+      "evidenceOrigin": "repo-authored",
+      "notes": "Port-authored type probes against @monaco-editor/react 4.8.0-rc.3 with tsc.",
+      "execution": {
+        "kind": "typescript",
+        "compiler": "tsc",
+        "project": "packages/monaco-editor-octane/typetests/pristine/tsconfig.json"
+      },
+      "files": [
+        {
+          "path": "packages/monaco-editor-octane/typetests/pristine/types.test-d.ts",
+          "role": "test",
+          "sha256": "bf8590d173f91979a506f80a9603243bbc12c452a89d926dcbf132620e56a5e9",
+          "cases": [
+            {
+              "id": "types:pristine",
+              "testName": "public surface type assertions",
+              "fullName": "public surface type assertions"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/typetests/pristine/tsconfig.json",
+          "role": "support",
+          "sha256": "87929c5cf72e774b3e98f45b83d6c30a6a6d621c423b1fb6c2dc9a95b6d409df"
+        },
+        {
+          "path": "packages/monaco-editor-octane/typetests/assertions.md",
+          "role": "support",
+          "sha256": "8935a863d94dafaa361e8ae1556d037a3bf8c6d7984fb12118a8741a76566290"
+        }
+      ]
+    },
+    {
+      "id": "monaco-editor-octane-adapted-types",
+      "type": "adapted-types",
+      "oracle": "required",
+      "available": true,
+      "environment": "workspace-node",
+      "project": "monaco-editor-octane-adapted-types",
+      "evidenceOrigin": "repo-authored",
+      "notes": "Same assertion groups against @octanejs/monaco-editor-octane with tsrx-tsc.",
+      "execution": {
+        "kind": "typescript",
+        "compiler": "tsrx-tsc",
+        "project": "packages/monaco-editor-octane/typetests/adapted/tsconfig.json"
+      },
+      "files": [
+        {
+          "path": "packages/monaco-editor-octane/typetests/adapted/types.test-d.ts",
+          "role": "test",
+          "sha256": "fcfc07fe666a7d2f731312fb133e390ec57a32f7ba37f85ad3b6a2c3d68ab17b",
+          "cases": [
+            {
+              "id": "types:adapted",
+              "testName": "public surface type assertions",
+              "fullName": "public surface type assertions"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/typetests/adapted/tsconfig.json",
+          "role": "support",
+          "sha256": "44b59812be0253068f0d348f97e414334e238377159b7ed3fcfc36564034c2bd"
+        },
+        {
+          "path": "packages/monaco-editor-octane/typetests/assertions.md",
+          "role": "support",
+          "sha256": "8935a863d94dafaa361e8ae1556d037a3bf8c6d7984fb12118a8741a76566290"
+        }
+      ]
+    },
+    {
+      "id": "monaco-editor-octane-differential",
+      "type": "differential",
+      "oracle": "required",
+      "environment": "workspace-node",
+      "project": "monaco-editor-octane-differential",
+      "evidenceOrigin": "repo-authored",
+      "notes": "Loading-shell DOM parity vs pinned @monaco-editor/react 4.8.0-rc.3 under the shared loader mock.",
+      "execution": {
+        "kind": "vitest-full",
+        "inventory": "packages/monaco-editor-octane/audit/differential-runtime.json"
+      },
+      "files": [
+        {
+          "path": "packages/monaco-editor-octane/audit/differential-runtime.json",
+          "role": "support",
+          "sha256": "e548914eed0bbb14d1263018fc95a5307ab17a5cc934707c035f386ab37bb664"
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/differential/parity.test.ts",
+          "role": "test",
+          "sha256": "949fcf3d538a2b02d5b1fe81c53022a4883dd5b15c798538d4d7fcd7f6da8c8b",
+          "cases": [
+            {
+              "id": "differential:3d1e46413d",
+              "testName": "renders matching DiffEditor loading shells",
+              "fullName": "differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4.8.0-rc.3 renders matching DiffEditor loading shells"
+            },
+            {
+              "id": "differential:04a77bc772",
+              "testName": "renders matching Editor loading shells before monaco resolves",
+              "fullName": "differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4.8.0-rc.3 renders matching Editor loading shells before monaco resolves"
+            },
+            {
+              "id": "differential:3fc3dcb918",
+              "testName": "renders matching useMonaco pending markup before init",
+              "fullName": "differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4.8.0-rc.3 renders matching useMonaco pending markup before init"
+            }
+          ]
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/_fixtures/differential/editor-diff.tsrx",
+          "role": "support",
+          "sha256": "4fa2fb9ce3921a7052c8e894572a5d8f1b814f0da96cdca4bc9bf4e73acd5b67"
+        },
+        {
+          "path": "packages/monaco-editor-octane/tests/differential/_setup.ts",
+          "role": "support",
+          "sha256": "9af7daf1bdc9fb39f0b374eaa4ceba6e7bbad7b3227b92e7a4d41557ed78bb9e"
+        }
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "id": "container-ref",
+      "caseIds": ["adapted:f2157eaed5", "adapted:2ff386bb71"],
+      "upstreamResult": "Internal MonacoContainer accepts _ref",
+      "octaneResult": "Internal MonacoContainer accepts Octane ref",
+      "rationale": "Octane has no forwardRef; refs are ordinary props.",
+      "classification": "intentional-divergence",
+      "consumerImpact": "None — _ref was never public.",
+      "migrationGuidance": "No consumer change.",
+      "owner": "bindings",
+      "reviewCondition": "If upstream exports MonacoContainer publicly with _ref."
+    },
+    {
+      "id": "loading-octane-node",
+      "caseIds": ["adapted:9d289754cd", "adapted:88ba64aa27"],
+      "upstreamResult": "loading?: ReactNode",
+      "octaneResult": "loading?: OctaneNode | string",
+      "rationale": "Octane renderable type.",
+      "classification": "intentional-divergence",
+      "consumerImpact": "Type-only for loading slots.",
+      "migrationGuidance": "Pass OctaneNode or string.",
+      "owner": "bindings",
+      "reviewCondition": "n/a"
+    }
+  ]
+}

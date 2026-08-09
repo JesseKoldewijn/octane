@@ -9,6 +9,7 @@ type HydrationBinding =
 	| 'aria'
 	| 'base-ui'
 	| 'docusaurus'
+	| 'monaco-editor-octane'
 	| 'rainbowkit'
 	| 'react-map-gl'
 	| 'solana-react'
@@ -80,6 +81,22 @@ function bindingAliases(binding: HydrationBinding) {
 
 	if (binding === 'react-map-gl') {
 		return [{ find: /^@octanejs\/react-map-gl$/, replacement: resolve(source, 'index.ts') }];
+	}
+
+	if (binding === 'monaco-editor-octane') {
+		return [
+			{
+				find: /^@octanejs\/monaco-editor-octane$/,
+				replacement: resolve(source, 'index.ts'),
+			},
+			{
+				find: /^@monaco-editor\/loader$/,
+				replacement: resolve(
+					repositoryRoot,
+					'packages/monaco-editor-octane/tests/_mocks/loader.ts',
+				),
+			},
+		];
 	}
 
 	if (binding === 'testing-library') {

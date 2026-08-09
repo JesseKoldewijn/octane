@@ -66,6 +66,7 @@
       "@octanejs/tanstack-form",
       "@octanejs/lexical",
       "@octanejs/tiptap",
+      "@octanejs/monaco-editor-octane",
       "@octanejs/streamdown",
       "@octanejs/mdx",
       "@octanejs/i18next"

@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"project": "monaco-editor-octane-differential",
+	"roots": [
+		"packages/monaco-editor-octane/tests/differential"
+	],
+	"files": [
+		"packages/monaco-editor-octane/tests/differential/parity.test.ts"
+	],
+	"tests": [
+		{
+			"id": "differential:3d1e46413d",
+			"file": "packages/monaco-editor-octane/tests/differential/parity.test.ts",
+			"testName": "renders matching DiffEditor loading shells",
+			"fullName": "differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4.8.0-rc.3 renders matching DiffEditor loading shells"
+		},
+		{
+			"id": "differential:04a77bc772",
+			"file": "packages/monaco-editor-octane/tests/differential/parity.test.ts",
+			"testName": "renders matching Editor loading shells before monaco resolves",
+			"fullName": "differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4.8.0-rc.3 renders matching Editor loading shells before monaco resolves"
+		},
+		{
+			"id": "differential:3fc3dcb918",
+			"file": "packages/monaco-editor-octane/tests/differential/parity.test.ts",
+			"testName": "renders matching useMonaco pending markup before init",
+			"fullName": "differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4.8.0-rc.3 renders matching useMonaco pending markup before init"
+		}
+	]
+}

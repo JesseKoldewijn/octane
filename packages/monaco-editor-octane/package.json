@@ -1,0 +1,77 @@
+{
+  "name": "@octanejs/monaco-editor-octane",
+  "version": "0.0.1",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "octane": {
+    "hookSlots": {
+      "manual": [
+        "src"
+      ]
+    },
+    "vite": {
+      "optimizeDeps": {
+        "exclude": [
+          "monaco-editor",
+          "@monaco-editor/loader"
+        ]
+      }
+    }
+  },
+  "description": "Monaco Editor bindings for Octane — a port of @monaco-editor/react over @monaco-editor/loader and monaco-editor.",
+  "author": {
+    "name": "Dominic Gannaway",
+    "email": "dg@domgan.com"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/octanejs/octane.git",
+    "directory": "packages/monaco-editor-octane"
+  },
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "src",
+    "LICENSE",
+    "README.md",
+    "UPSTREAM.md"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./loader": "./src/loader.ts"
+  },
+  "scripts": {
+    "test": "vitest run --root ../.. --project monaco-editor-octane"
+  },
+  "dependencies": {
+    "@monaco-editor/loader": "catalog:default"
+  },
+  "peerDependencies": {
+    "monaco-editor": ">= 0.25.0 < 1",
+    "octane": "workspace:*"
+  },
+  "devDependencies": {
+    "@monaco-editor/react": "catalog:default",
+    "@octanejs/testing-library": "workspace:*",
+    "@testing-library/jest-dom": "catalog:default",
+    "@tsrx/react": "catalog:default",
+    "@types/react": "catalog:default",
+    "@types/react-dom": "catalog:default",
+    "esbuild": "catalog:default",
+    "monaco-editor": "catalog:default",
+    "octane": "workspace:*",
+    "playwright": "catalog:default",
+    "react": "catalog:default",
+    "react-dom": "catalog:default",
+    "vite": "catalog:default",
+    "vitest": "catalog:default"
+  }
+}

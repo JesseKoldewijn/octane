@@ -1,0 +1,22 @@
+{
+  "upstream": {
+    "package": "@monaco-editor/react",
+    "version": "4.8.0-rc.3 (f7ef2e6)"
+  },
+  "surface": "Complete against the pinned @monaco-editor/react 4.8.0-rc.3 public surface: default Editor, DiffEditor, loader re-export, useMonaco, Monaco/Theme types, and Editor/DiffEditor prop/callback types. @monaco-editor/loader is reused unchanged.",
+  "divergences": [
+    "loading accepts OctaneNode | string instead of React.ReactNode.",
+    "Internal MonacoContainer uses Octane ref on the host div; upstream's private _ref prop is not carried forward.",
+    "'use client' directives are omitted; editors remain browser-only via effects.",
+    "CSS style objects use plain records rather than React.CSSProperties."
+  ],
+  "ssr": "Supported and tested: Editor/DiffEditor server-render the loading shell (section + Loading) and do not call loader.init or monaco.editor.create on the server. hydrateRoot adopts that shell; client effects run init afterward.",
+  "verified": "2026-08-09",
+  "notes": [
+    "monaco-editor peer range matches upstream (>= 0.25.0 < 1). Oracle pin is monaco-editor@0.56.0.",
+    "Upstream Vitest suite is snapshot-only (4 files). Port-authored lifecycle, differential, SSR/hydration, Chromium browser, and example e2e supply behavioral parity.",
+    "Library onChange prop name is preserved (model content callback), not rewritten to onInput.",
+    "Worker/CDN configuration stays in the consuming app; see README and examples/monaco-playground (Vite MonacoEnvironment + ?worker)."
+  ],
+  "docs": ["packages/monaco-editor-octane/UPSTREAM.md"]
+}
