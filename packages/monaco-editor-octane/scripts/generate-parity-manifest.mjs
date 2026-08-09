@@ -210,7 +210,7 @@ const manifest = {
 			project: 'monaco-editor-octane',
 			evidenceOrigin: 'repo-authored',
 			notes:
-				'Adapted upstream snapshot cases plus port-authored lifecycle/useMonaco coverage against the monaco/loader doubles. Upstream React RTL snapshots are not runnable pristine against Octane.',
+				'Adapted upstream snapshot ports only (Loading / MonacoContainer / Editor / DiffEditor). Port-authored lifecycle/useMonaco live under tests/runtime and stay outside adapted inventory. Upstream React RTL snapshots are not runnable pristine against Octane.',
 			execution: {
 				kind: 'vitest-full',
 				inventory: adaptedInventoryRel,

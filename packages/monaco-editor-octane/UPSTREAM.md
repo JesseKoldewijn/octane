@@ -34,10 +34,10 @@ Every runtime and type export of `src/index.ts` at the pin.
 
 | Export | Kind | Disposition | Evidence |
 | --- | --- | --- | --- |
-| `Editor` (also `default`) | component | ported | `tests/upstream/editor-shell.test.ts`, `tests/upstream/editor-lifecycle.test.ts`, differential, browser, SSR |
-| `DiffEditor` | component | ported | `tests/upstream/diff-editor-shell.test.ts`, `tests/upstream/diff-lifecycle.test.ts`, differential |
+| `Editor` (also `default`) | component | ported | `tests/upstream/editor-shell.test.ts`, `tests/runtime/editor-lifecycle.test.ts`, differential, browser, SSR |
+| `DiffEditor` | component | ported | `tests/upstream/diff-editor-shell.test.ts`, `tests/runtime/diff-lifecycle.test.ts`, differential |
 | `loader` | re-export | reused verbatim (`@monaco-editor/loader`) | shell tests + browser recipe |
-| `useMonaco` | hook | ported | `tests/upstream/use-monaco.test.ts`, differential |
+| `useMonaco` | hook | ported | `tests/runtime/use-monaco.test.ts`, differential |
 | `OnMount` / `BeforeMount` / `OnChange` / `OnValidate` / `EditorProps` | types | ported (`ReactNode`→`OctaneNode`) | typetests |
 | `MonacoDiffEditor` / `DiffOnMount` / `DiffBeforeMount` / `DiffEditorProps` | types | ported | typetests |
 | `Monaco` | type | ported | typetests |
@@ -70,7 +70,8 @@ Upstream ships **no type tests**. Both type lanes are port-authored.
 
 | File | Classification | Pairing |
 | --- | --- | --- |
-| `tests/upstream/*.test.ts` | adapted upstream | re-authors upstream RTL snapshot / lifecycle cases |
+| `tests/upstream/*.test.ts` | adapted upstream | re-authors the four upstream RTL snapshot specs only |
+| `tests/runtime/*.test.ts` | Octane-only runtime contract | unpaired — lifecycle/useMonaco against monaco doubles; ordinary shards |
 | `tests/differential/parity.test.ts` | React/Octane differential | pinned `@monaco-editor/react@4.8.0-rc.3` |
 | `tests/ssr/ssr.test.ts` | Octane-only framework contract | unpaired — upstream ships no SSR suite |
 | `tests/hydration/hydration.test.ts` | Octane-only framework contract | unpaired — hydration adoption is Octane's |
@@ -81,11 +82,12 @@ Upstream ships **no type tests**. Both type lanes are port-authored.
 
 ## Evidence lanes
 
-- Adapted upstream shell/lifecycle suites (mocked loader + monaco doubles), including
+- Adapted upstream snapshot ports (Loading / MonacoContainer / Editor / DiffEditor shells)
+- Port-authored runtime lifecycle/useMonaco suites (mocked loader + monaco doubles), including
   language/theme/path+viewState/onValidate/beforeMount/options and DiffEditor
-  original/theme/paths/keep-flags/remount coverage
+  original/theme/paths/keep-flags/remount coverage — ordinary shards, not adapted inventory
 - React/Octane differential with pinned `@monaco-editor/react@4.8.0-rc.3`
-  (loading-shell + held-init useMonaco pending)
+  (full-DOM loading-shell + held-init useMonaco pending `step`s)
 - SSR loading shell / hydration adopt
 - Package Chromium browser + npm workers (`tests/browser`), including language/theme
   sync and controlled-value remount

@@ -11,7 +11,6 @@ afterEach(() => {
 });
 
 describe('DiffEditor lifecycle', () => {
-	// @parity-case adapted:b132df9018
 	it('creates a diff editor and reports onMount', async () => {
 		const onMount = vi.fn();
 		const view = mount(DiffEditorFixture, {
@@ -32,7 +31,6 @@ describe('DiffEditor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:ca39744630
 	it('updates modified content from props', async () => {
 		const view = mount(DiffEditorFixture, {
 			original: 'a',
@@ -51,7 +49,6 @@ describe('DiffEditor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:c71f7eeee6
 	it('updates original content and theme', async () => {
 		const view = mount(DiffEditorFixture, {
 			original: 'left-a',
@@ -73,7 +70,6 @@ describe('DiffEditor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:4c531229c1
 	it('applies language and model path props', async () => {
 		const view = mount(DiffEditorFixture, {
 			original: 'o',
@@ -95,7 +91,6 @@ describe('DiffEditor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:169626cc19
 	it('keeps original/modified models when keep flags are set', async () => {
 		const view = mount(DiffEditorFixture, {
 			original: 'keep-o',
@@ -116,7 +111,6 @@ describe('DiffEditor lifecycle', () => {
 		modified.dispose();
 	});
 
-	// @parity-case adapted:a9aba43e31
 	it('disposes the diff editor and allows remount', async () => {
 		const onMount = vi.fn();
 		const view = mount(DiffEditorFixture, { original: 'a', modified: 'b', onMount });

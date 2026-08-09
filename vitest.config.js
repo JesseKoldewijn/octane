@@ -2587,6 +2587,8 @@ export default defineConfig({
 			},
 
 			{
+				// Adapted upstream snapshot ports own tests/upstream/**; port-authored
+				// lifecycle/useMonaco live under tests/runtime/** and stay in ordinary shards.
 				testExecution: {
 					group: 'react-parity',
 					include: ['packages/monaco-editor-octane/tests/upstream/**/*.test.ts'],

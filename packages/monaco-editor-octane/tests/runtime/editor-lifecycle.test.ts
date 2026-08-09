@@ -11,7 +11,6 @@ afterEach(() => {
 });
 
 describe('Editor lifecycle', () => {
-	// @parity-case adapted:c4d6ff1c6a
 	it('calls onMount after monaco init and editor.create', async () => {
 		const onMount = vi.fn();
 		const view = mount(EditorFixture, {
@@ -29,7 +28,6 @@ describe('Editor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:e453d061c4
 	it('syncs controlled value without firing onChange', async () => {
 		const onChange = vi.fn();
 		const view = mount(EditorFixture, {
@@ -53,7 +51,6 @@ describe('Editor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:47b1162701
 	it('fires onChange for model content edits', async () => {
 		const onChange = vi.fn();
 		const view = mount(EditorFixture, {
@@ -71,7 +68,6 @@ describe('Editor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:f1eb7c31d0
 	it('disposes editor on unmount and allows remount', async () => {
 		const view = mount(EditorFixture, { defaultValue: 'x' });
 		await settle();
@@ -89,7 +85,6 @@ describe('Editor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:e27f5a89fe
 	it('keeps model when keepCurrentModel is true', async () => {
 		const view = mount(EditorFixture, {
 			defaultValue: 'kept',
@@ -104,7 +99,6 @@ describe('Editor lifecycle', () => {
 		model.dispose();
 	});
 
-	// @parity-case adapted:237f735217
 	it('syncs language onto the active model', async () => {
 		const view = mount(EditorFixture, {
 			defaultValue: 'x',
@@ -126,7 +120,6 @@ describe('Editor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:587deff296
 	it('applies theme on mount and on update', async () => {
 		const view = mount(EditorFixture, {
 			defaultValue: 'x',
@@ -146,7 +139,6 @@ describe('Editor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:8722a474f3
 	it('swaps path models and restores saved view state', async () => {
 		const view = mount(EditorFixture, {
 			defaultValue: 'one',
@@ -179,7 +171,6 @@ describe('Editor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:6f01d01deb
 	it('fires onValidate when markers change for the editor model', async () => {
 		const onValidate = vi.fn();
 		const view = mount(EditorFixture, {
@@ -202,7 +193,6 @@ describe('Editor lifecycle', () => {
 		}
 	});
 
-	// @parity-case adapted:0abfe41e5d
 	it('runs beforeMount, reveals line, and applies options updates', async () => {
 		const beforeMount = vi.fn();
 		const view = mount(EditorFixture, {

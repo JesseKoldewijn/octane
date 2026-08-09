@@ -11,7 +11,6 @@ afterEach(() => {
 });
 
 describe('useMonaco', () => {
-	// @parity-case adapted:a3baf63022
 	it('is null until loader.init resolves, then returns the instance', async () => {
 		const view = mount(UseMonacoProbe);
 		try {
@@ -26,7 +25,6 @@ describe('useMonaco', () => {
 		}
 	});
 
-	// @parity-case adapted:4961ee849e
 	it('stays pending when unmounted before loader.init resolves', async () => {
 		loader.__reset({ holdInit: true });
 		const view = mount(UseMonacoProbe);

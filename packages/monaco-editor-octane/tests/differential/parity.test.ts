@@ -2,12 +2,13 @@
  * Same fixtures through @octanejs/monaco-editor-octane and pinned
  * @monaco-editor/react@4.8.0-rc.3 on React, against the shared loader mock.
  *
- * Lifecycle create/dispose is covered by adapted upstream tests with the monaco
- * double. The published React bundle's async loader.init path does not reliably
- * finish editor.create under jsdom with that double, so this lane pins the
- * consumer-visible loading shell both implementations emit on first paint.
+ * Lifecycle create/dispose is covered by port-authored runtime tests with the
+ * monaco double. The published React bundle's async loader.init path does not
+ * reliably finish editor.create under jsdom with that double, so this lane pins
+ * the consumer-visible loading / pending markup both implementations emit on
+ * first paint via the differential rig's full normalized DOM `step`.
  */
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, it, beforeEach } from 'vitest';
 import { resolve } from 'node:path';
 import { mountDifferential } from '../../../octane/tests/differential/_rig.ts';
 import loader from '../_mocks/loader';
@@ -19,23 +20,12 @@ beforeEach(() => {
 	loader.__reset();
 });
 
-function sectionShell(container: HTMLElement) {
-	const section = container.querySelector('section');
-	const host = section?.querySelector(':scope > div:last-of-type') as HTMLElement | null;
-	const loading = section?.querySelector(':scope > div') as HTMLElement | null;
-	return {
-		hasSection: Boolean(section),
-		hasLoadingText: Boolean(section?.textContent?.includes('Loading...')),
-		loadingDisplay: loading?.style.display ?? null,
-		hostDisplay: host?.style.display ?? null,
-		width: (section as HTMLElement | null)?.style.width ?? null,
-		height: (section as HTMLElement | null)?.style.height ?? null,
-	};
-}
-
 describe('differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4.8.0-rc.3', () => {
 	// @parity-case differential:04a77bc772
 	it('renders matching Editor loading shells before monaco resolves', async () => {
+		// Hold loader.init so step cannot race the microtask that would flip
+		// either side past the loading shell under a busy schedule.
+		loader.__reset({ holdInit: true });
 		const differential = await mountDifferential(
 			EDITOR_FIXTURE,
 			'EditorDiff',
@@ -43,21 +33,15 @@ describe('differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4
 			CACHE,
 		);
 
-		await differential.observe('initial loading shell', (octaneMount, reactMount) => {
-			expect(sectionShell(octaneMount.container)).toEqual(sectionShell(reactMount.container));
-			expect(sectionShell(octaneMount.container)).toMatchObject({
-				hasSection: true,
-				hasLoadingText: true,
-				hostDisplay: 'none',
-				height: '200px',
-			});
-		});
+		await differential.step('initial loading shell', () => {});
 
 		differential.unmount();
+		loader.__reset();
 	});
 
 	// @parity-case differential:3d1e46413d
 	it('renders matching DiffEditor loading shells', async () => {
+		loader.__reset({ holdInit: true });
 		const differential = await mountDifferential(
 			EDITOR_FIXTURE,
 			'DiffEditorDiff',
@@ -65,24 +49,17 @@ describe('differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4
 			CACHE,
 		);
 
-		await differential.observe('diff loading shell', (octaneMount, reactMount) => {
-			expect(sectionShell(octaneMount.container)).toEqual(sectionShell(reactMount.container));
-			expect(sectionShell(octaneMount.container).hasLoadingText).toBe(true);
-		});
+		await differential.step('diff loading shell', () => {});
 
 		differential.unmount();
+		loader.__reset();
 	});
 
 	// @parity-case differential:3fc3dcb918
 	it('renders matching useMonaco pending markup before init', async () => {
-		// Hold loader.init so observe cannot race the microtask that would flip
-		// both sides to "ready" under a busy full-suite schedule.
 		loader.__reset({ holdInit: true });
 		const differential = await mountDifferential(EDITOR_FIXTURE, 'UseMonacoDiff', {}, CACHE);
-		await differential.observe('useMonaco pending', (octaneMount, reactMount) => {
-			expect(octaneMount.container.textContent).toBe(reactMount.container.textContent);
-			expect(octaneMount.container.textContent).toBe('pending');
-		});
+		await differential.step('useMonaco pending', () => {});
 		differential.unmount();
 		// Drop held init resolvers without settling — unmount already canceled the
 		// promises, and useMonaco only attaches a fulfillment handler.
