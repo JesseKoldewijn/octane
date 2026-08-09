@@ -63,7 +63,7 @@
         {
           "path": "packages/monaco-editor-octane/audit/adapted-runtime.json",
           "role": "support",
-          "sha256": "5c53044b724bc5639587e4486afd42019aadb58250a8353ec4ea06817c148047"
+          "sha256": "bd853ccc267fec5765fc28760fae200f7f8b71ae8e0b41e64e64b950e32b4335"
         },
         {
           "path": "packages/monaco-editor-octane/tests/harness/negative-controls.test.ts",
@@ -322,7 +322,7 @@
         {
           "path": "packages/monaco-editor-octane/audit/differential-runtime.json",
           "role": "support",
-          "sha256": "e548914eed0bbb14d1263018fc95a5307ab17a5cc934707c035f386ab37bb664"
+          "sha256": "c6fb8e31d05568a75926beae23cd852efab3d1de73f69bb938e83bc5c3d9936d"
         },
         {
           "path": "packages/monaco-editor-octane/tests/differential/parity.test.ts",

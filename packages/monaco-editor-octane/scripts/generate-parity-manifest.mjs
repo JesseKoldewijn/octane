@@ -24,7 +24,6 @@ mkdirSync(AUDIT, { recursive: true });
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const hashFile = (relative) => sha256(readFileSync(path.join(REPO, relative)));
-const pendingWrites = [];
 
 function walk(absolute) {
 	const out = [];
@@ -92,7 +91,6 @@ function writeInventory(project, ownedPrefixes, inventoryRelative) {
 		files: [...files].sort(),
 		tests,
 	};
-	writeFileSync(path.join(REPO, inventoryRelative), `${JSON.stringify(inventory, null, '\t')}\n`);
 	return inventory;
 }
 
@@ -115,6 +113,9 @@ const differentialInventory = writeInventory(
 	['packages/monaco-editor-octane/tests/differential'],
 	differentialInventoryRel,
 );
+
+await writeJson(path.join(REPO, adaptedInventoryRel), adaptedInventory);
+await writeJson(path.join(REPO, differentialInventoryRel), differentialInventory);
 
 const lockfileSha256 = sha256(readFileSync(path.join(REPO, 'pnpm-lock.yaml')));
 

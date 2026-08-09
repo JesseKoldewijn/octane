@@ -126,6 +126,7 @@ export const KNOWN_BINDINGS = {
 	'@mdx-js/react': '@octanejs/mdx',
 	'dexie-react-hooks': '@octanejs/dexie',
 	'@livestore/react': '@octanejs/livestore',
+	'@monaco-editor/react': '@octanejs/monaco-editor-octane',
 };
 
 // Octane-specific ecosystem packages that have no React import to rewrite.
@@ -167,6 +168,7 @@ export const KNOWN_VANILLA_CORES = {
 	'@lexical/react': 'lexical',
 	'@tiptap/react': '@tiptap/core',
 	'@livestore/react': '@livestore/livestore',
+	'@monaco-editor/react': '@monaco-editor/loader',
 };
 
 export const REACT_API_MAP = {
