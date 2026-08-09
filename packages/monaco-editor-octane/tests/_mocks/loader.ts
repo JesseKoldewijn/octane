@@ -52,12 +52,10 @@ const loader = {
 		instance = null;
 		canceled = false;
 		holdInit = options?.holdInit === true;
+		// Drop without resolve/reject so canceled holdInit promises are not
+		// settled into unhandled rejections (useMonaco only attaches .then).
 		pendingResolvers = [];
 		monaco.__reset();
-	},
-	__releaseInit() {
-		const resolvers = pendingResolvers.splice(0, pendingResolvers.length);
-		for (const resolve of resolvers) resolve(monaco);
 	},
 };
 

@@ -84,6 +84,8 @@ describe('differential: @octanejs/monaco-editor-octane vs @monaco-editor/react 4
 			expect(octaneMount.container.textContent).toBe('pending');
 		});
 		differential.unmount();
-		loader.__releaseInit();
+		// Drop held init resolvers without settling — unmount already canceled the
+		// promises, and useMonaco only attaches a fulfillment handler.
+		loader.__reset();
 	});
 });
