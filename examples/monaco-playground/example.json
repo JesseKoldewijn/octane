@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "monaco-playground",
   "title": "Monaco Playground",
-  "summary": "A production-built Monaco Editor app exercising the Octane binding with Vite workers, controlled value sync, and DiffEditor.",
+  "summary": "A production-built Monaco Editor app exercising the Octane binding with CDN Monaco workers, controlled value sync, and DiffEditor.",
   "status": "active",
   "renderModes": ["client"],
   "dialects": ["tsrx"],

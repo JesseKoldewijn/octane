@@ -2589,7 +2589,10 @@ export default defineConfig({
 			{
 				testExecution: {
 					group: 'react-parity',
-					include: ['packages/monaco-editor-octane/tests/upstream/**/*.test.ts'],
+					include: [
+						'packages/monaco-editor-octane/tests/upstream/**/*.test.ts',
+						'packages/monaco-editor-octane/tests/harness/**/*.test.ts',
+					],
 				},
 				test: {
 					name: 'monaco-editor-octane',
