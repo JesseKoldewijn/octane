@@ -2,8 +2,14 @@
 
 Consumer example for [`@octanejs/monaco-editor-octane`](../../packages/monaco-editor-octane).
 
-Uses Vite `?worker` imports + `loader.config({ monaco })` so language workers load
-from the app bundle rather than the CDN.
+**Default path:** npm-packaged `monaco-editor@0.56.0` (workspace catalog pin) bundled
+with Vite. `src/monaco-env.ts` sets `MonacoEnvironment.getWorker` via
+`monaco-editor/<…>.worker?worker` imports (0.56 exports map) and calls
+`loader.config({ monaco })` so the binding, loader, and editor package versions
+are exercised together by typecheck, production build, and e2e.
+
+CDN AMD `loader.config({ paths: { vs } })` is documented as an alternate in the
+package README — this example does not use it.
 
 ```bash
 pnpm --filter monaco-playground-example dev

@@ -1,12 +1,37 @@
 /**
- * Browser harness uses the loader CDN defaults so workers resolve without a
- * bundler worker plugin. The example app documents the Vite `?worker` recipe.
+ * Package Chromium harness uses the same npm + Vite `?worker` recipe as
+ * `examples/monaco-playground` so version skew between the binding, loader,
+ * and `monaco-editor@0.56.0` is exercised under real workers.
  */
+import * as monaco from 'monaco-editor';
+import editorWorker from 'monaco-editor/editor/editor.worker?worker';
+import jsonWorker from 'monaco-editor/language/json/json.worker?worker';
+import cssWorker from 'monaco-editor/language/css/css.worker?worker';
+import htmlWorker from 'monaco-editor/language/html/html.worker?worker';
+import tsWorker from 'monaco-editor/language/typescript/ts.worker?worker';
 import { loader } from '@octanejs/monaco-editor-octane';
+import 'monaco-editor/editor/editor.main.css';
 
-// Keep the default CDN paths from @monaco-editor/loader.
-loader.config({
-	paths: {
-		vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.56.0/min/vs',
+globalThis.MonacoEnvironment = {
+	getWorker(_workerId: string, label: string): Worker {
+		switch (label) {
+			case 'json':
+				return new jsonWorker();
+			case 'css':
+			case 'scss':
+			case 'less':
+				return new cssWorker();
+			case 'html':
+			case 'handlebars':
+			case 'razor':
+				return new htmlWorker();
+			case 'typescript':
+			case 'javascript':
+				return new tsWorker();
+			default:
+				return new editorWorker();
+		}
 	},
-});
+};
+
+loader.config({ monaco });

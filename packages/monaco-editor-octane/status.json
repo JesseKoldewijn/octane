@@ -16,7 +16,7 @@
     "monaco-editor peer range matches upstream (>= 0.25.0 < 1). Oracle pin is monaco-editor@0.56.0.",
     "Upstream Vitest suite is snapshot-only (4 files). Port-authored lifecycle, differential, SSR/hydration, Chromium browser, and example e2e supply behavioral parity.",
     "Library onChange prop name is preserved (model content callback), not rewritten to onInput.",
-    "Worker/CDN configuration stays in the consuming app; v1 browser harness and examples/monaco-playground use CDN loader paths (Vite MonacoEnvironment + ?worker documented as an alternative in README)."
+    "Worker configuration stays in the consuming app. v1 default (examples/monaco-playground + package Chromium harness) is npm monaco-editor@0.56.0 via Vite MonacoEnvironment + ?worker and loader.config({ monaco }); CDN AMD paths remain a documented alternate in README."
   ],
   "docs": ["packages/monaco-editor-octane/UPSTREAM.md"]
 }

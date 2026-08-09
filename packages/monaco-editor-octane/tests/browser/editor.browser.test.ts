@@ -41,6 +41,21 @@ beforeAll(async () => {
 		);
 	}
 
+	const { createRequire } = await import('node:module');
+	const { existsSync, readFileSync } = await import('node:fs');
+	const { join } = await import('node:path');
+	const require = createRequire(import.meta.url);
+	let monacoRoot = dirname(require.resolve('monaco-editor'));
+	while (monacoRoot !== dirname(monacoRoot)) {
+		const packageJsonPath = join(monacoRoot, 'package.json');
+		if (existsSync(packageJsonPath)) {
+			const name = JSON.parse(readFileSync(packageJsonPath, 'utf8')).name as string;
+			if (name === 'monaco-editor') break;
+		}
+		monacoRoot = dirname(monacoRoot);
+	}
+	const monacoEditorCss = resolve(monacoRoot, 'min/vs/editor/editor.main.css');
+
 	const port = await getFreePort();
 	viteServer = await createServer({
 		root: harnessRoot,
@@ -55,6 +70,8 @@ beforeAll(async () => {
 			alias: [
 				{ find: /^@octanejs\/monaco-editor-octane$/, replacement: packageSource },
 				{ find: /^octane$/, replacement: octaneSource },
+				// monaco-editor 0.56 exports map only covers JS; CSS needs an explicit alias.
+				{ find: 'monaco-editor/editor/editor.main.css', replacement: monacoEditorCss },
 			],
 		},
 		optimizeDeps: {
