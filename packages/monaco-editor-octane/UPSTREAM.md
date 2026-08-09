@@ -65,8 +65,13 @@ Upstream ships **no type tests**. Both type lanes are port-authored.
 
 ## Evidence lanes
 
-- Adapted upstream shell/lifecycle suites (mocked loader + monaco doubles)
+- Adapted upstream shell/lifecycle suites (mocked loader + monaco doubles), including
+  language/theme/path+viewState/onValidate/beforeMount/options and DiffEditor
+  original/theme/paths/keep-flags/remount coverage
 - React/Octane differential with pinned `@monaco-editor/react@4.8.0-rc.3`
+  (loading-shell + held-init useMonaco pending)
 - SSR loading shell / hydration adopt
-- Package Chromium browser + workers (`tests/browser`)
-- Example Playwright (`examples/monaco-playground`)
+- Package Chromium browser + npm workers (`tests/browser`), including language/theme
+  sync and controlled-value remount
+- Example Playwright (`examples/monaco-playground`) with language-worker + controlled
+  value journey

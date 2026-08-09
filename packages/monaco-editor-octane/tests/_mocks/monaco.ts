@@ -88,7 +88,7 @@ export type MockEditor = {
 	setValue(value: string): void;
 	updateOptions(options: Record<string, unknown>): void;
 	getOption(id: number): unknown;
-	executeEdits(_source: string, edits: Array<{ text: string }>): void;
+	executeEdits(_source: string, edits: Array<{ text: string; range?: unknown }>): void;
 	pushUndoStop(): void;
 	revealLine(line: number): void;
 	saveViewState(): { scrollTop: number };
@@ -101,6 +101,9 @@ export type MockEditor = {
 	_contentListeners: Set<Listener>;
 	_model: MockModel | null;
 	_theme: string;
+	_revealedLine: number | null;
+	_restoredViewState: unknown;
+	_viewScroll: number;
 };
 
 export type MockDiffEditor = {
@@ -131,6 +134,9 @@ function createStandaloneEditor(
 		_contentListeners: contentListeners,
 		_model: (options.model as MockModel) ?? null,
 		_theme: 'light',
+		_revealedLine: null,
+		_restoredViewState: null,
+		_viewScroll: 0,
 		getModel() {
 			return this._model;
 		},
@@ -156,11 +162,16 @@ function createStandaloneEditor(
 			for (const listener of contentListeners) listener({ changes: [] });
 		},
 		pushUndoStop() {},
-		revealLine() {},
-		saveViewState() {
-			return { scrollTop: 0 };
+		revealLine(line) {
+			this._revealedLine = line;
 		},
-		restoreViewState() {},
+		saveViewState() {
+			this._viewScroll += 1;
+			return { scrollTop: this._viewScroll };
+		},
+		restoreViewState(state) {
+			this._restoredViewState = state;
+		},
 		onDidChangeModelContent(listener) {
 			contentListeners.add(listener);
 			return disposable(() => contentListeners.delete(listener));
@@ -222,6 +233,8 @@ export const EditorOption = {
 };
 
 const markerListeners = new Set<Listener>();
+const markersByResource = new Map<string, unknown[]>();
+let currentTheme = 'light';
 
 export const monaco = {
 	Uri: {
@@ -240,13 +253,16 @@ export const monaco = {
 		setModelLanguage(model: MockModel, language: string) {
 			model._language = language;
 		},
-		setTheme(_theme: string) {},
+		setTheme(theme: string) {
+			currentTheme = theme;
+		},
 		onDidChangeMarkers(listener: Listener) {
 			markerListeners.add(listener);
 			return disposable(() => markerListeners.delete(listener));
 		},
-		getModelMarkers() {
-			return [] as unknown[];
+		getModelMarkers(filter?: { resource?: { toString(): string } }) {
+			if (!filter?.resource) return [] as unknown[];
+			return markersByResource.get(filter.resource.toString()) ?? [];
 		},
 		defineTheme() {},
 	},
@@ -255,10 +271,18 @@ export const monaco = {
 		createdEditors.length = 0;
 		createdDiffEditors.length = 0;
 		markerListeners.clear();
+		markersByResource.clear();
+		currentTheme = 'light';
 	},
 	__editors: createdEditors,
 	__diffEditors: createdDiffEditors,
-	__emitMarkers(uris: Array<{ path: string }>) {
+	__getTheme() {
+		return currentTheme;
+	},
+	__setMarkers(uri: { toString(): string; path?: string }, markers: unknown[]) {
+		markersByResource.set(uri.toString(), markers);
+	},
+	__emitMarkers(uris: Array<{ path: string; toString?: () => string }>) {
 		for (const listener of markerListeners) listener(uris);
 	},
 };

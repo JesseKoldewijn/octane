@@ -35,6 +35,13 @@
       "kind": "golden",
       "spec": "e2e/editor.spec.ts",
       "critical": true
+    },
+    {
+      "id": "language-worker-controlled-value",
+      "title": "Switch language workers and keep controlled value sync",
+      "kind": "golden",
+      "spec": "e2e/editor.spec.ts",
+      "critical": true
     }
   ],
   "faultScenarios": []

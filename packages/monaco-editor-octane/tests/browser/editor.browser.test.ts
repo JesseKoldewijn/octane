@@ -134,4 +134,62 @@ describe('@octanejs/monaco-editor-octane browser', () => {
 			await page.getByTestId('diff-host').locator('.monaco-diff-editor').count(),
 		).toBeGreaterThan(0);
 	});
+
+	it('syncs language and theme onto the live npm monaco instance', async () => {
+		await page.getByTestId('language').selectOption('javascript');
+		await page.getByTestId('theme').selectOption('vs-dark');
+		await expect
+			.poll(async () => page.getByTestId('language-flag').textContent(), { timeout: 10_000 })
+			.toBe('javascript');
+		await expect
+			.poll(async () => page.getByTestId('theme-flag').textContent(), { timeout: 10_000 })
+			.toBe('vs-dark');
+		await expect
+			.poll(
+				async () =>
+					page.evaluate(() => {
+						const editor = (
+							globalThis as {
+								__monacoHarnessEditor?: {
+									getModel(): { getLanguageId(): string } | null;
+								};
+							}
+						).__monacoHarnessEditor;
+						return editor?.getModel()?.getLanguageId() ?? null;
+					}),
+				{ timeout: 10_000 },
+			)
+			.toBe('javascript');
+		expect(await page.locator('.monaco-editor').first().isVisible()).toBe(true);
+	});
+
+	it('keeps controlled value after remount with npm workers', async () => {
+		const before = await page.getByTestId('value').textContent();
+		await page.evaluate(() => {
+			const editor = (
+				globalThis as {
+					__monacoHarnessEditor?: {
+						executeEdits(source: string, edits: Array<{ range: unknown; text: string }>): void;
+						getModel(): { getFullModelRange(): unknown } | null;
+						pushUndoStop(): void;
+					};
+				}
+			).__monacoHarnessEditor;
+			const model = editor?.getModel();
+			if (!editor || !model) throw new Error('harness editor missing');
+			editor.executeEdits('', [
+				{ range: model.getFullModelRange(), text: 'const remount = true;\n' },
+			]);
+			editor.pushUndoStop();
+		});
+		await expect
+			.poll(async () => page.getByTestId('value').textContent(), { timeout: 10_000 })
+			.toContain('remount');
+		expect(before).not.toContain('remount');
+		await page.getByTestId('remount').click();
+		await page.locator('[data-editor-ready="true"]').waitFor({ timeout: 30_000 });
+		await expect
+			.poll(async () => page.getByTestId('value').textContent(), { timeout: 10_000 })
+			.toContain('remount');
+	});
 });

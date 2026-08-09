@@ -58,9 +58,61 @@ test('toggles theme and language without losing the editor', async ({ page }) =>
 	await page.getByLabel('Language').selectOption('javascript');
 	await expect(page.locator('.monaco-editor').first()).toBeVisible();
 	await expect(page.getByTestId('ready-flag')).toHaveText('ready');
+	await expect
+		.poll(
+			async () =>
+				page.evaluate(() => {
+					const editor = (
+						globalThis as {
+							__monacoPlaygroundEditor?: {
+								getModel(): { getLanguageId(): string } | null;
+							};
+						}
+					).__monacoPlaygroundEditor;
+					return editor?.getModel()?.getLanguageId() ?? null;
+				}),
+			{ timeout: 15_000 },
+		)
+		.toBe('javascript');
 });
 
 test('mounts DiffEditor panes', async ({ page }) => {
 	const diff = page.getByTestId('diff-frame').locator('.monaco-diff-editor');
 	await expect(diff).toBeVisible({ timeout: 60_000 });
+});
+
+test('keeps controlled preview after language worker switch', async ({ page }) => {
+	await page.getByLabel('Language').selectOption('json');
+	await page.evaluate(() => {
+		const instance = (
+			globalThis as {
+				__monacoPlaygroundEditor?: {
+					executeEdits(source: string, edits: Array<{ range: unknown; text: string }>): void;
+					getModel(): { getFullModelRange(): unknown } | null;
+					pushUndoStop(): void;
+				};
+			}
+		).__monacoPlaygroundEditor;
+		const model = instance?.getModel();
+		if (!instance || !model) throw new Error('monaco editor missing');
+		instance.executeEdits('', [{ range: model.getFullModelRange(), text: '{"ok":true}\n' }]);
+		instance.pushUndoStop();
+	});
+	await expect(page.getByTestId('value-preview')).toContainText('"ok":true');
+	await expect
+		.poll(
+			async () =>
+				page.evaluate(() => {
+					const editor = (
+						globalThis as {
+							__monacoPlaygroundEditor?: {
+								getModel(): { getLanguageId(): string } | null;
+							};
+						}
+					).__monacoPlaygroundEditor;
+					return editor?.getModel()?.getLanguageId() ?? null;
+				}),
+			{ timeout: 15_000 },
+		)
+		.toBe('json');
 });

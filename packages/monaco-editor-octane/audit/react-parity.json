@@ -31,8 +31,8 @@
     }
   },
   "adaptedRuntimeSummary": {
-    "inventoryEntries": 17,
-    "uniqueIdentities": 17,
+    "inventoryEntries": 27,
+    "uniqueIdentities": 27,
     "duplicateEntriesWithinLanes": 0,
     "identitiesSharedAcrossLanes": 0
   },
@@ -63,7 +63,7 @@
         {
           "path": "packages/monaco-editor-octane/audit/adapted-runtime.json",
           "role": "support",
-          "sha256": "bd853ccc267fec5765fc28760fae200f7f8b71ae8e0b41e64e64b950e32b4335"
+          "sha256": "6e0fc98c344dd82f87a9c3902147fdf45b3fadaefc920b00b82ea7b87ff94212"
         },
         {
           "path": "packages/monaco-editor-octane/tests/harness/negative-controls.test.ts",
@@ -102,25 +102,50 @@
         {
           "path": "packages/monaco-editor-octane/tests/upstream/diff-lifecycle.test.ts",
           "role": "test",
-          "sha256": "a2e78648dcacbe53e10ce51e3ce1851d25ade25da8680d006b68eead37516bd3",
+          "sha256": "d42ab46d3fca9e17835dfd1428f79529ca99eb3d1c19a167eacaafce0da139b5",
           "cases": [
+            {
+              "id": "adapted:4c531229c1",
+              "testName": "applies language and model path props",
+              "fullName": "DiffEditor lifecycle applies language and model path props"
+            },
             {
               "id": "adapted:b132df9018",
               "testName": "creates a diff editor and reports onMount",
               "fullName": "DiffEditor lifecycle creates a diff editor and reports onMount"
             },
             {
+              "id": "adapted:a9aba43e31",
+              "testName": "disposes the diff editor and allows remount",
+              "fullName": "DiffEditor lifecycle disposes the diff editor and allows remount"
+            },
+            {
+              "id": "adapted:169626cc19",
+              "testName": "keeps original/modified models when keep flags are set",
+              "fullName": "DiffEditor lifecycle keeps original/modified models when keep flags are set"
+            },
+            {
               "id": "adapted:ca39744630",
               "testName": "updates modified content from props",
               "fullName": "DiffEditor lifecycle updates modified content from props"
+            },
+            {
+              "id": "adapted:c71f7eeee6",
+              "testName": "updates original content and theme",
+              "fullName": "DiffEditor lifecycle updates original content and theme"
             }
           ]
         },
         {
           "path": "packages/monaco-editor-octane/tests/upstream/editor-lifecycle.test.ts",
           "role": "test",
-          "sha256": "046af0350702b25ee204815632b27e25ed19c4fe145410f002ae6fc075d27910",
+          "sha256": "e5a2c480dfe10d7b3750f8884189996a44dda775b75468f0383b106ec438311a",
           "cases": [
+            {
+              "id": "adapted:587deff296",
+              "testName": "applies theme on mount and on update",
+              "fullName": "Editor lifecycle applies theme on mount and on update"
+            },
             {
               "id": "adapted:c4d6ff1c6a",
               "testName": "calls onMount after monaco init and editor.create",
@@ -137,14 +162,34 @@
               "fullName": "Editor lifecycle fires onChange for model content edits"
             },
             {
+              "id": "adapted:6f01d01deb",
+              "testName": "fires onValidate when markers change for the editor model",
+              "fullName": "Editor lifecycle fires onValidate when markers change for the editor model"
+            },
+            {
               "id": "adapted:e27f5a89fe",
               "testName": "keeps model when keepCurrentModel is true",
               "fullName": "Editor lifecycle keeps model when keepCurrentModel is true"
             },
             {
+              "id": "adapted:0abfe41e5d",
+              "testName": "runs beforeMount, reveals line, and applies options updates",
+              "fullName": "Editor lifecycle runs beforeMount, reveals line, and applies options updates"
+            },
+            {
+              "id": "adapted:8722a474f3",
+              "testName": "swaps path models and restores saved view state",
+              "fullName": "Editor lifecycle swaps path models and restores saved view state"
+            },
+            {
               "id": "adapted:e453d061c4",
               "testName": "syncs controlled value without firing onChange",
               "fullName": "Editor lifecycle syncs controlled value without firing onChange"
+            },
+            {
+              "id": "adapted:237f735217",
+              "testName": "syncs language onto the active model",
+              "fullName": "Editor lifecycle syncs language onto the active model"
             }
           ]
         },
@@ -197,12 +242,17 @@
         {
           "path": "packages/monaco-editor-octane/tests/upstream/use-monaco.test.ts",
           "role": "test",
-          "sha256": "7b94275854038d46ad12a4f58466009f1e6bb971bf141041942a18247abb684b",
+          "sha256": "47660f6f8c7bb7ff105c13b6c4f414cf0be77f5c6b555b772dc40b6a99d11fc1",
           "cases": [
             {
               "id": "adapted:a3baf63022",
               "testName": "is null until loader.init resolves, then returns the instance",
               "fullName": "useMonaco is null until loader.init resolves, then returns the instance"
+            },
+            {
+              "id": "adapted:4961ee849e",
+              "testName": "stays pending when unmounted before loader.init resolves",
+              "fullName": "useMonaco stays pending when unmounted before loader.init resolves"
             }
           ]
         },
@@ -219,7 +269,7 @@
         {
           "path": "packages/monaco-editor-octane/tests/_mocks/monaco.ts",
           "role": "support",
-          "sha256": "2a999fd9179c5beeead661d0eefcbe7efdc2726ad5ea7568e0a05a5414f4fe80"
+          "sha256": "93f4f6f8f9334424bc6daf2a0b934fc0481530ae695ce293417dc2527542efe2"
         },
         {
           "path": "packages/monaco-editor-octane/tests/_fixtures/upstream.tsrx",
