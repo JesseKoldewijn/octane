@@ -4,6 +4,9 @@ This port targets `@monaco-editor/react@4.8.0-rc.3` at master tip
 `f7ef2e686c83449babaea49815c69db3668d2ab7` (README-only ahead of npm tag
 `c94cd77eb45e34473ae75711eede15523fbd25e4`). The tip includes remount-safe
 Editor dispose (`editorRef` / `preventCreation` / `isEditorReady` cleared).
+Upstream DiffEditor at the same tip still omits that reset; this port applies
+the same remount-safe dispose to DiffEditor so createDiffEditor can run again
+after effect cleanup that preserves component state.
 
 - repository: `https://github.com/suren-atoyan/monaco-react`
 - package version: `4.8.0-rc.3`

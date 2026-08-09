@@ -118,16 +118,21 @@ describe('DiffEditor lifecycle', () => {
 
 	// @parity-case adapted:a9aba43e31
 	it('disposes the diff editor and allows remount', async () => {
-		const view = mount(DiffEditorFixture, { original: 'a', modified: 'b' });
+		const onMount = vi.fn();
+		const view = mount(DiffEditorFixture, { original: 'a', modified: 'b', onMount });
 		await settle();
+		expect(onMount).toHaveBeenCalledTimes(1);
 		const first = monaco.__diffEditors[0]!;
+		const createdBefore = monaco.__diffEditors.length;
 		act(() => view.unmount());
 		await settle(2);
 		expect(first._disposed).toBe(true);
-		const view2 = mount(DiffEditorFixture, { original: 'c', modified: 'd' });
+		const view2 = mount(DiffEditorFixture, { original: 'c', modified: 'd', onMount });
 		try {
 			await settle();
+			expect(monaco.__diffEditors.length).toBeGreaterThan(createdBefore);
 			expect(monaco.__diffEditors.some((editor) => !editor._disposed)).toBe(true);
+			expect(onMount).toHaveBeenCalledTimes(2);
 		} finally {
 			act(() => view2.unmount());
 		}

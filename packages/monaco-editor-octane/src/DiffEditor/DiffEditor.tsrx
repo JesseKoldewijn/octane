@@ -194,6 +194,13 @@ function DiffEditor(props: DiffEditorProps = {}) @{
 		}
 
 		editorRef.current?.dispose();
+
+		// Remount-safe dispose: match Editor (upstream Editor tip; DiffEditor still
+		// omits this). Clears gates so createEditor can run again after effect
+		// cleanup that preserves component state.
+		editorRef.current = null;
+		preventCreation.current = false;
+		setIsEditorReady(false);
 	}
 
 	<MonacoContainer
