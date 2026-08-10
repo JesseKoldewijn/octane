@@ -66,3 +66,5 @@ website/public/lynx-runtime
 
 # Pristine vitest cache for tanstack-hotkeys upstream suite
 packages/tanstack-hotkeys/.vite-pristine/
+# Pristine vitest cache for monaco-editor upstream suite
+packages/monaco-editor/.vite-pristine/
