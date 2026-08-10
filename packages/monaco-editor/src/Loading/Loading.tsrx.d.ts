@@ -5,5 +5,5 @@ export type LoadingProps = {
 	children?: OctaneNode;
 };
 
-export declare function Loading(props?: LoadingProps): Octane.JSX.Element;
+declare function Loading(props?: LoadingProps): Octane.JSX.Element;
 export default Loading;
