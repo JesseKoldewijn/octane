@@ -5634,6 +5634,10 @@ export default defineConfig({
 				},
 			},
 			{
+				testExecution: {
+					group: 'react-parity',
+					include: ['packages/grab/tests/grab.contract.test.ts'],
+				},
 				test: {
 					name: 'grab',
 					include: ['packages/grab/tests/**/*.test.ts'],
