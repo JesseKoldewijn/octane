@@ -3,3 +3,4 @@ vendor/babel-preset-solid-1.9.9/node_modules/
 dist/
 test-results/
 playwright-report/
+vendor/babel-plugin-jsx-dom-expressions-0.40.10/package-lock.json
