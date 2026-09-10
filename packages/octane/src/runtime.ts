@@ -99,6 +99,14 @@ import {
 	__devtoolsSetBoundaryState,
 	__devtoolsClearBoundary,
 } from './devtools-hook.js';
+import {
+	__inspectRegisterRoot,
+	__inspectUnregisterRoot,
+	__inspectSetNameResolver,
+	__inspectSetChildWalker,
+	__inspectSetResumeFlush,
+	isInspectUpdatesPaused,
+} from './inspect.js';
 import type {
 	HydrateProps,
 	HydrationPrefetchFunction,
@@ -4543,11 +4551,20 @@ function scheduleRender(block: Block): void {
 	block.pendingDeferred = deferred;
 	QUEUE.push(block);
 	if (syncFlush) return;
+	// Grab/inspect freeze: keep the block queued but do not schedule a drain
+	// until pauseUpdates()'s resume runs (see octane/inspect).
+	if (isInspectUpdatesPaused()) return;
 	if (!scheduled) {
 		scheduled = true;
 		queueMicrotask(flush);
 	}
 }
+
+__inspectSetResumeFlush(() => {
+	if (isInspectUpdatesPaused() || syncFlush || QUEUE.length === 0 || scheduled) return;
+	scheduled = true;
+	queueMicrotask(flush);
+});
 
 // Monotonic id per drainQueue pass, paired with Block.drainStamp/drainRenders
 // for the render-phase-update loop guard. 25 matches React's cap.
@@ -4863,6 +4880,9 @@ function drainQueue(): { err: any } | null {
 
 function flush(): void {
 	scheduled = false;
+	// Inspect freeze: drop stale microtasks armed before pauseUpdates() without
+	// draining. Resume re-arms via __inspectSetResumeFlush.
+	if (isInspectUpdatesPaused()) return;
 	// Re-entrancy backstop (see `inFlush`): a flush landing inside an active
 	// flush re-arms the scheduler instead of draining over the outer walk.
 	if (inFlush) {
@@ -7830,12 +7850,11 @@ function unmountBlock(block: Block, detachDom: boolean = true): void {
 
 function unmountBlockInner(block: Block, detachDom: boolean): void {
 	block.disposed = true;
-	if (
-		typeof __OCTANE_PROFILE_ENABLED__ !== 'undefined' &&
-		__OCTANE_PROFILE_ENABLED__ &&
-		block.kind === 'root'
-	)
-		__devtoolsUnregisterRoot(block);
+	if (block.kind === 'root') {
+		__inspectUnregisterRoot(block as any);
+		if (typeof __OCTANE_PROFILE_ENABLED__ !== 'undefined' && __OCTANE_PROFILE_ENABLED__)
+			__devtoolsUnregisterRoot(block);
+	}
 	const owner = block.idState.renderOwner;
 	if (owner?.current === block) {
 		owner.generation++;
@@ -35707,6 +35726,9 @@ function makeRoot(
 			createdInRootRender(rootBlock);
 			registerRootErrorHandlers(rootBlock, errorOptions);
 			registerRootDisposer(rootBlock);
+			__inspectSetNameResolver(inspectDevtoolsName);
+			__inspectSetChildWalker(inspectDevtoolsChildScopes);
+			__inspectRegisterRoot(rootBlock as any);
 			if (typeof __OCTANE_PROFILE_ENABLED__ !== 'undefined' && __OCTANE_PROFILE_ENABLED__) {
 				__devtoolsSetNameResolver(inspectDevtoolsName);
 				__devtoolsSetChildWalker(inspectDevtoolsChildScopes);
@@ -35886,6 +35908,7 @@ function makeRoot(
 			try {
 				if (rootBlock) {
 					DOM_ROOT_DISPOSERS.delete(rootBlock);
+					__inspectUnregisterRoot(rootBlock as any);
 					if (typeof __OCTANE_PROFILE_ENABLED__ !== 'undefined' && __OCTANE_PROFILE_ENABLED__)
 						__devtoolsUnregisterRoot(
 							rootBlock as unknown as import('./devtools-hook.js').DevtoolsScopeLike,
@@ -36055,6 +36078,9 @@ export function hydrateRoot(
 	);
 	if (typeof __OCTANE_PROFILE_ENABLED__ !== 'undefined' && __OCTANE_PROFILE_ENABLED__)
 		__profileTrackComponent(rootBlock, body);
+	__inspectSetNameResolver(inspectDevtoolsName);
+	__inspectSetChildWalker(inspectDevtoolsChildScopes);
+	__inspectRegisterRoot(rootBlock as any);
 	if (typeof __OCTANE_PROFILE_ENABLED__ !== 'undefined' && __OCTANE_PROFILE_ENABLED__) {
 		__devtoolsSetNameResolver(inspectDevtoolsName);
 		__devtoolsSetChildWalker(inspectDevtoolsChildScopes);
