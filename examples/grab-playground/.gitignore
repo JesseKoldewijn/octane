@@ -1,0 +1,5 @@
+vendor/babel-plugin-jsx-dom-expressions-0.40.10/node_modules/
+vendor/babel-preset-solid-1.9.9/node_modules/
+dist/
+test-results/
+playwright-report/

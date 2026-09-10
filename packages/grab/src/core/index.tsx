@@ -1,5 +1,6 @@
-// CSS is shipped as authored source; Vitest/vite ?raw loads it as a string.
-import cssText from '../styles.css?raw';
+// Overlay CSS must be Tailwind-compiled (see scripts/build-overlay-css.mjs).
+// Authored styles.css is for app imports; the shadow root needs expanded utilities.
+import cssText from '../overlay-styles.css?raw';
 import {
 	createMemo,
 	createRoot,
@@ -20,6 +21,10 @@ import {
 	hasTextSelectionOnPage,
 } from '../utils/is-keyboard-event-triggered-by-input.js';
 import { mountRoot } from '../utils/mount-root.js';
+import {
+	bindSolidDelegatedEventsToRoot,
+	installSolidDocumentListenerRedirect,
+} from '../utils/solid-event-root.js';
 import {
 	getScopeContainer,
 	setScopeContainer,
@@ -163,6 +168,7 @@ import { findShortcutAction } from '../utils/action-shortcuts.js';
 import { createKeyboardSelectionController } from './keyboard-selection.js';
 import { executeContextMenuAction } from '../utils/execute-context-menu-action.js';
 import { notifyToolbarStateChangeSubscribers } from '../utils/notify-toolbar-state-change-subscribers.js';
+import { shouldClearToolbarSelectHover } from '../utils/should-clear-toolbar-select-hover.js';
 import { forwardSameOriginFrameEvents } from '../utils/forward-same-origin-frame-events.js';
 import { isHtmlElement } from '../utils/is-html-element.js';
 import { isDocumentAncestorOfElement } from '../utils/is-document-ancestor-of-element.js';
@@ -1721,12 +1727,24 @@ export const init = (rawOptions?: OptionsType): ReactGrabAPIType => {
 			}
 		};
 
+		const syncToolbarSelectHoverFromPointer = (clientX: number, clientY: number) => {
+			if (!isToolbarSelectHovered()) return;
+			const rect =
+				toolbarElement && isElementConnected(toolbarElement)
+					? toolbarElement.getBoundingClientRect()
+					: null;
+			if (shouldClearToolbarSelectHover(true, clientX, clientY, rect)) {
+				setIsToolbarSelectHovered(false);
+			}
+		};
+
 		const deactivateRenderer = () => {
 			cancelPendingCopies();
 			const wasDragging = isDragging();
 			const previousFocused = store.previouslyFocusedElement;
 			stopSpaceDragRepositioning();
 			actions.deactivate();
+			setIsToolbarSelectHovered(false);
 			dismissToolbarMenu();
 			stopShiftMultiSelecting();
 			clearKeyboardNavigation();
@@ -3023,6 +3041,9 @@ export const init = (rawOptions?: OptionsType): ReactGrabAPIType => {
 				if (!event.isPrimary) return;
 				const isTouchPointer = event.pointerType === 'touch';
 				actions.setTouchMode(isTouchPointer);
+				// Must run before overlay early-return: leaving the toolbar onto the
+				// frozen page still needs to clear select-hover suppress.
+				syncToolbarSelectHoverFromPointer(event.clientX, event.clientY);
 				if (isEventFromOverlay(event, 'data-react-grab-ignore-events')) return;
 				if (isElementDetectionBlocked()) return;
 				if (isTouchPointer && !isHoldingKeys() && !isActivated()) return;
@@ -3436,6 +3457,15 @@ export const init = (rawOptions?: OptionsType): ReactGrabAPIType => {
 			cancelPendingAttachment,
 		} = mountRoot(overlayCssText);
 		onCleanup(cancelPendingAttachment);
+
+		// Octane and Solid both stamp `el.$$click` (etc.). Keep Solid's delegated
+		// walk inside the overlay shadow root so it never sees Octane bundles.
+		const overlayShadow = rendererHost.shadowRoot;
+		if (overlayShadow) {
+			const uninstallSolidRedirect = installSolidDocumentListenerRedirect();
+			bindSolidDelegatedEventsToRoot(overlayShadow);
+			onCleanup(uninstallSolidRedirect);
+		}
 
 		const themeWatcher = watchAppTheme(rendererHost);
 		onCleanup(themeWatcher.cleanup);

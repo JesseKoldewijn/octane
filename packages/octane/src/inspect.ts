@@ -107,13 +107,24 @@ function componentSource(block: InspectBlockLike): InspectSourceFrame | null {
 function nodeInBlockRange(block: InspectBlockLike, node: Node): boolean {
 	const start = block.startMarker;
 	const end = block.endMarker;
-	if (start === null || end === null) {
+	// Exclusive markers are null on createRoot-style roots; some scopes leave them
+	// undefined instead — treat both as "no exclusive range".
+	if (start == null || end == null) {
 		// createRoot roots often keep null exclusive markers and own `parentNode`.
 		const parent = (block as InspectBlockLike & { parentNode?: Node | null }).parentNode ?? null;
 		if (parent === null) return false;
 		return parent === node || (typeof parent.contains === 'function' && parent.contains(node));
 	}
 	if (node === start || node === end) return true;
+	// Client single-root mounts self-delimit: startMarker === endMarker === the
+	// sole host element (no exclusive comment pair). Exclusive FOLLOWING/PRECEDING
+	// checks fail for descendants (CONTAINED_BY, not PRECEDING), so treat that
+	// element as an inclusive container.
+	if (start === end) {
+		return typeof (start as Node & { contains?: (n: Node) => boolean }).contains === 'function'
+			? (start as Node & { contains: (n: Node) => boolean }).contains(node)
+			: false;
+	}
 	const afterStart = start.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING;
 	const beforeEnd = end.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING;
 	return afterStart !== 0 && beforeEnd !== 0;

@@ -7,6 +7,7 @@ import {
 	pauseUpdates,
 } from '../src/inspect.js';
 import { InspectCounter, InspectLabel } from './_fixtures/inspect.tsrx';
+import { InspectOuter } from './_fixtures/inspect-nested.tsx';
 
 describe('octane/inspect', () => {
 	it('registers roots and maps host nodes to owners', () => {
@@ -17,6 +18,20 @@ describe('octane/inspect', () => {
 		expect(owner).not.toBeNull();
 		expect(typeof owner!.displayName).toBe('string');
 		expect(getOwnerStackFromHost(host).length).toBeGreaterThan(0);
+		r.unmount();
+	});
+
+	it('maps nested single-root hosts through the owner stack', () => {
+		const r = mount(InspectOuter);
+		const inner = r.find('[data-testid="inspect-inner"]');
+		const owner = getOwnerFromHostInstance(inner);
+		expect(owner).not.toBeNull();
+		const stackNames = getOwnerStackFromHost(inner).map((frame) => frame.name);
+		const dump = JSON.stringify({ owner: owner!.displayName, stackNames });
+		// Before single-root marker containment, the walk stopped at the root and
+		// never reached nested component frames.
+		expect(stackNames, dump).toContain('InspectInner');
+		expect(stackNames, dump).toContain('InspectOuter');
 		r.unmount();
 	});
 

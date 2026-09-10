@@ -36,7 +36,8 @@ Adapted unit/e2e suites regenerate under `tests/upstream/` (gitignored).
 | `react-grab` (`init`, plugins, types, errors, `generateSnippet`, globals) | `@octanejs/grab` → `src/index.ts` | Auto-init also sets `__OCTANE_GRAB__` (and keeps `__REACT_GRAB__`) |
 | `react-grab/core` | `@octanejs/grab/core` | Solid core + overlay |
 | `react-grab/primitives` | `@octanejs/grab/primitives` | Freeze/hit-testing helpers |
-| `react-grab/styles.css` | `@octanejs/grab/styles.css` | Authored Tailwind source CSS |
+| `react-grab/styles.css` | `@octanejs/grab/styles.css` | Authored Tailwind source (app import) |
+| `react-grab/dist/styles.css` (shadow inject) | `src/overlay-styles.css` | Tailwind-compiled + rem→px for shadow overlay (`pnpm css:build`) |
 | `bin` / `react-grab` CLI | **Gap** | Use `@react-grab/cli` directly; no `@octanejs/grab` bin yet |
 
 ### Notable divergences

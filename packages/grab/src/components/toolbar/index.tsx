@@ -694,11 +694,13 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 				drag.handlePointerDown(event);
 			}}
 			on:mousedown={stopEventPropagation}
-			onMouseEnter={() => {
+			on:pointerenter={() => {
 				setIsToolbarHovered(true);
 				if (!isCollapsed()) props.onSelectHoverChange?.(true);
 			}}
-			onMouseLeave={() => {
+			on:pointerleave={() => {
+				// Prefer pointerleave over mouseleave: under html pointer-events
+				// freeze, leaving a pe:auto toolbar island can skip mouseleave.
 				setIsToolbarHovered(false);
 				props.onSelectHoverChange?.(false);
 			}}

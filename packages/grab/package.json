@@ -49,6 +49,7 @@
     "status.json"
   ],
   "scripts": {
+    "css:build": "node ./scripts/build-overlay-css.mjs",
     "test": "vitest run --root ../.. --project grab --project grab-adapted --maxWorkers=2",
     "upstream:verify": "node ../../scripts/react-parity/verify-provenance.mjs",
     "typecheck": "tsrx-tsc --noEmit -p tsconfig.json"
@@ -63,6 +64,7 @@
   },
   "devDependencies": {
     "@octanejs/testing-library": "workspace:*",
+    "@tailwindcss/cli": "^4.1.0",
     "octane": "workspace:*",
     "vitest": "catalog:default",
     "vite-plugin-solid": "2.10.2",
