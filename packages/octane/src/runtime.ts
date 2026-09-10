@@ -484,8 +484,12 @@ function inspectDevtoolsChildScopes(
 }
 
 function inspectDevtoolsName(scope: import('./devtools-hook.js').DevtoolsScopeLike): string {
-	const component = __profileGetComponent(scope);
-	if (component !== undefined) return componentName({ body: component } as Block);
+	// Keep `__profileGetComponent` behind the profile flag so normal production
+	// bundles can tree-shake profiling.ts (octane/inspect must not pin it).
+	if (typeof __OCTANE_PROFILE_ENABLED__ !== 'undefined' && __OCTANE_PROFILE_ENABLED__) {
+		const component = __profileGetComponent(scope);
+		if (component !== undefined) return componentName({ body: component } as Block);
+	}
 	return scope.body === undefined ? 'Unknown' : componentName(scope as Block);
 }
 
