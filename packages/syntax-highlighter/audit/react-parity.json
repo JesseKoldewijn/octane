@@ -11,7 +11,10 @@
     "integrity": "sha256:8a324f3d4d79e6b40b2f2279ee97285a0a85d552ecdf6f1910f178907cda31aa",
     "verification": "verified"
   },
-  "upstreamSuites": { "runtime": "present", "types": "insufficient" },
+  "upstreamSuites": {
+    "runtime": "present",
+    "types": "insufficient"
+  },
   "adaptedRoots": {
     "source": {
       "roots": ["packages/syntax-highlighter/src"],
@@ -224,7 +227,7 @@
         {
           "path": "packages/syntax-highlighter/tests/adapted/light-async.test.ts",
           "role": "support",
-          "sha256": "ce352e997eaf8cc4dd349b2b09c83db63dbf865ce7beb6a0982449ffe757315f"
+          "sha256": "b0ed2195f53bc9c52af9445eee85145b4ceeea2bf5d0877d86d038532580730b"
         },
         {
           "path": "packages/syntax-highlighter/tests/adapted/line-numbers.test.ts",
