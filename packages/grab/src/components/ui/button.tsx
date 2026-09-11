@@ -1,4 +1,5 @@
-import { splitProps, type Component, type JSX } from 'solid-js';
+/** @jsxImportSource octane */
+import type { OctaneNode } from 'octane';
 import { cn } from '../../utils/cn.js';
 import { createVariants } from '../../utils/create-variants.js';
 
@@ -18,17 +19,22 @@ export const buttonVariants = createVariants(
 	},
 );
 
-interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Record<string, unknown> {
 	variant?: 'chip' | 'destructive' | 'ghost';
+	class?: string;
+	type?: 'button' | 'submit' | 'reset';
+	children?: OctaneNode;
+	onClick?: (event: MouseEvent) => void;
+	disabled?: boolean;
+	title?: string;
+	style?: Record<string, string | number>;
 }
 
-export const Button: Component<ButtonProps> = (props) => {
-	const [local, rest] = splitProps(props, ['variant', 'class', 'type']);
+export const Button = (props: ButtonProps) => {
+	const { variant, class: className, type, children, ...rest } = props;
 	return (
-		<button
-			type={local.type ?? 'button'}
-			class={cn(buttonVariants({ variant: local.variant }), local.class)}
-			{...rest}
-		/>
+		<button type={type ?? 'button'} class={cn(buttonVariants({ variant }), className)} {...rest}>
+			{children}
+		</button>
 	);
 };

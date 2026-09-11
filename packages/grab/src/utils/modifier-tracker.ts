@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount, type Accessor } from 'solid-js';
+import { createSignal, onCleanup, onMount, type Accessor } from '../reactivity/index.js';
 import { ignoreRealInput } from './runtime-mode.js';
 
 // Tracks whether a keyboard modifier is currently held. Window blur resets it

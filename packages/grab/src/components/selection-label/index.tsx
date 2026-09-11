@@ -1,13 +1,5 @@
-import {
-	createEffect,
-	createMemo,
-	createSignal,
-	on,
-	onCleanup,
-	onMount,
-	Show,
-	type Component,
-} from 'solid-js';
+/** @jsxImportSource octane */
+import { useEffect, useRef, useState } from 'octane';
 import type { ArrowPosition, SelectionLabelProps } from '../../types.js';
 import {
 	FADE_DURATION_MS,
@@ -61,18 +53,18 @@ interface PositionResult {
 	elementIdentity: string;
 }
 
-export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
-	let containerRef: HTMLDivElement | undefined;
-	let panelRef: HTMLDivElement | undefined;
-	let inputRef: HTMLTextAreaElement | undefined;
-	let isTagCurrentlyHovered = false;
+export const SelectionLabel = (props: SelectionLabelProps) => {
+	const containerRef = useRef<HTMLDivElement | null>(null);
+	const panelRef = useRef<HTMLDivElement | null>(null);
+	const inputRef = useRef<HTMLTextAreaElement | null>(null);
+	const isTagCurrentlyHovered = useRef(false);
 
-	const [measuredWidth, setMeasuredWidth] = createSignal(0);
-	const [measuredHeight, setMeasuredHeight] = createSignal(0);
-	const [panelWidth, setPanelWidth] = createSignal(0);
-	const [viewportVersion, setViewportVersion] = createSignal(0);
-	const [isInternalFading, setIsInternalFading] = createSignal(false);
-	const [isShaking, setIsShaking] = createSignal(false);
+	const [, setMeasuredWidth, measuredWidth] = useState(0);
+	const [, setMeasuredHeight, measuredHeight] = useState(0);
+	const [, setPanelWidth, panelWidth] = useState(0);
+	const [, setViewportVersion] = useState(0);
+	const [, setIsInternalFading, isInternalFading] = useState(false);
+	const [, setIsShaking, isShaking] = useState(false);
 
 	const canInteract = () =>
 		props.status !== 'copying' &&
@@ -94,28 +86,26 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 		return false;
 	};
 
-	let resizeObserver: ResizeObserver | undefined;
-
 	const handleTagHoverChange = (hovered: boolean) => {
-		isTagCurrentlyHovered = hovered;
+		isTagCurrentlyHovered.current = hovered;
 	};
 
 	const handleViewportChange = () => {
 		setViewportVersion((version) => version + 1);
 	};
 
-	onMount(() => {
+	useEffect(() => {
 		const scopeContainer = getScopeContainer();
-		resizeObserver = new ResizeObserver((entries) => {
+		const resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
 				const rect = entry.target.getBoundingClientRect();
 				// Updates are skipped during tag hover to prevent a feedback loop
 				// where hover changes the size, the size shifts the position, and the
 				// shifted position changes what the cursor is over.
-				if (entry.target === containerRef && !isTagCurrentlyHovered) {
+				if (entry.target === containerRef.current && !isTagCurrentlyHovered.current) {
 					setMeasuredWidth(rect.width);
 					setMeasuredHeight(rect.height);
-				} else if (entry.target === panelRef) {
+				} else if (entry.target === panelRef.current) {
 					setPanelWidth(rect.width);
 				} else if (entry.target === scopeContainer) {
 					// Scoped instances clamp to the container's box, so its resizes must
@@ -125,167 +115,170 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 			}
 		});
 		if (scopeContainer) resizeObserver.observe(scopeContainer);
-		if (containerRef) {
-			const rect = containerRef.getBoundingClientRect();
+		if (containerRef.current) {
+			const rect = containerRef.current.getBoundingClientRect();
 			setMeasuredWidth(rect.width);
 			setMeasuredHeight(rect.height);
-			resizeObserver.observe(containerRef);
+			resizeObserver.observe(containerRef.current);
 		}
-		if (panelRef) {
-			setPanelWidth(panelRef.getBoundingClientRect().width);
-			resizeObserver.observe(panelRef);
+		if (panelRef.current) {
+			setPanelWidth(panelRef.current.getBoundingClientRect().width);
+			resizeObserver.observe(panelRef.current);
 		}
 		window.addEventListener('scroll', handleViewportChange, true);
 		window.addEventListener('resize', handleViewportChange);
 		window.visualViewport?.addEventListener('resize', handleViewportChange);
 		window.visualViewport?.addEventListener('scroll', handleViewportChange);
-	});
 
-	onCleanup(() => {
-		resizeObserver?.disconnect();
-		window.removeEventListener('scroll', handleViewportChange, true);
-		window.removeEventListener('resize', handleViewportChange);
-		window.visualViewport?.removeEventListener('resize', handleViewportChange);
-		window.visualViewport?.removeEventListener('scroll', handleViewportChange);
-	});
+		return () => {
+			resizeObserver.disconnect();
+			window.removeEventListener('scroll', handleViewportChange, true);
+			window.removeEventListener('resize', handleViewportChange);
+			window.visualViewport?.removeEventListener('resize', handleViewportChange);
+			window.visualViewport?.removeEventListener('scroll', handleViewportChange);
+		};
+	}, []);
 
 	const elementIdentity = () => `${props.tagName ?? ''}:${props.componentName ?? ''}`;
 
-	// This reducer-style memo preserves position state across reactive updates,
+	// This reducer-style computation preserves position state across renders,
 	// resetting to offscreen on element identity change and keeping the last
 	// good position when measurements briefly fail (via hadValidBounds). It
 	// replaces an earlier anti-pattern of deriving state via effects.
 	// @see https://github.com/aidenybai/react-grab/pull/245
-	const positionComputation = createMemo(
-		(previousResult: PositionResult): PositionResult => {
-			viewportVersion();
-			const currentElementIdentity = elementIdentity();
-			const didReset = currentElementIdentity !== previousResult.elementIdentity;
-			const cached: PositionResult = didReset
-				? {
-						position: DEFAULT_OFFSCREEN_POSITION,
-						computedArrowPosition: null,
-						hadValidBounds: false,
-						elementIdentity: currentElementIdentity,
-					}
-				: previousResult;
+	const previousResultRef = useRef<PositionResult>({
+		position: DEFAULT_OFFSCREEN_POSITION,
+		computedArrowPosition: null,
+		hadValidBounds: false,
+		elementIdentity: '',
+	});
 
-			const bounds = props.selectionBounds;
-			const labelWidth = measuredWidth();
-			const labelHeight = measuredHeight();
-			const hasMeasurements = labelWidth > 0 && labelHeight > 0;
-			const hasValidBounds = bounds && bounds.width > 0 && bounds.height > 0;
-
-			if (!hasMeasurements || !hasValidBounds) {
-				return {
-					position: cached.hadValidBounds ? cached.position : DEFAULT_OFFSCREEN_POSITION,
-					computedArrowPosition: cached.computedArrowPosition,
-					hadValidBounds: cached.hadValidBounds,
-					elementIdentity: currentElementIdentity,
-				};
-			}
-
-			// Scope-aware: inside a scoped instance (demo showcases) the container's
-			// box is the viewport, so the label stays within the showcase card
-			// instead of spilling over the host page.
-			const viewport = getVisualViewport();
-			const viewportLeft = viewport.offsetLeft;
-			const viewportTop = viewport.offsetTop;
-			const viewportRight = viewportLeft + viewport.width;
-			const viewportBottom = viewportTop + viewport.height;
-
-			const isSelectionVisibleInViewport =
-				bounds.x + bounds.width > viewportLeft &&
-				bounds.x < viewportRight &&
-				bounds.y + bounds.height > viewportTop &&
-				bounds.y < viewportBottom;
-
-			if (!isSelectionVisibleInViewport) {
-				return {
+	const computePosition = (): PositionResult => {
+		const previousResult = previousResultRef.current;
+		const currentElementIdentity = elementIdentity();
+		const didReset = currentElementIdentity !== previousResult.elementIdentity;
+		const cached: PositionResult = didReset
+			? {
 					position: DEFAULT_OFFSCREEN_POSITION,
-					computedArrowPosition: cached.computedArrowPosition,
-					hadValidBounds: cached.hadValidBounds,
+					computedArrowPosition: null,
+					hadValidBounds: false,
 					elementIdentity: currentElementIdentity,
-				};
-			}
+				}
+			: previousResult;
 
-			const selectionCenterX = bounds.x + bounds.width / 2;
-			const cursorX = props.mouseX ?? selectionCenterX;
-			const selectionBottom = bounds.y + bounds.height;
-			const selectionTop = bounds.y;
+		const bounds = props.selectionBounds;
+		const labelWidth = measuredWidth();
+		const labelHeight = measuredHeight();
+		const hasMeasurements = labelWidth > 0 && labelHeight > 0;
+		const hasValidBounds = bounds && bounds.width > 0 && bounds.height > 0;
 
-			const actualArrowHeight = props.hideArrow ? 0 : getArrowSize(panelWidth());
-
-			// The label is cursor-anchored: left stays at cursorX and
-			// translateX(-50%) handles centering, so width changes from component
-			// name resolution or status updates never shift the anchor point.
-			// When the label would overflow the viewport, edgeOffsetX is added to
-			// the transform to push it back on-screen without moving left.
-			const anchorX = cursorX;
-			let edgeOffsetX = 0;
-			let positionTop = selectionBottom + actualArrowHeight + LABEL_GAP_PX;
-
-			const labelLeft = anchorX - labelWidth / 2;
-			const labelRight = anchorX + labelWidth / 2;
-
-			if (labelRight > viewportRight - VIEWPORT_MARGIN_PX) {
-				edgeOffsetX = viewportRight - VIEWPORT_MARGIN_PX - labelRight;
-			}
-			if (labelLeft + edgeOffsetX < viewportLeft + VIEWPORT_MARGIN_PX) {
-				edgeOffsetX = viewportLeft + VIEWPORT_MARGIN_PX - labelLeft;
-			}
-
-			const totalHeightNeeded = labelHeight + actualArrowHeight + LABEL_GAP_PX;
-			const fitsBelow = positionTop + labelHeight <= viewportBottom - VIEWPORT_MARGIN_PX;
-
-			if (!fitsBelow) {
-				positionTop = selectionTop - totalHeightNeeded;
-			}
-
-			if (positionTop < viewportTop + VIEWPORT_MARGIN_PX) {
-				positionTop = viewportTop + VIEWPORT_MARGIN_PX;
-			}
-
-			const labelHalfWidth = labelWidth / 2;
-			const arrowCenterPx = labelHalfWidth - edgeOffsetX;
-			const arrowMinPx = Math.min(ARROW_LABEL_MARGIN_PX, labelHalfWidth);
-			const arrowMaxPx = Math.max(labelWidth - ARROW_LABEL_MARGIN_PX, labelHalfWidth);
-			const clampedArrowCenterPx = Math.max(arrowMinPx, Math.min(arrowMaxPx, arrowCenterPx));
-			const arrowLeftOffset = clampedArrowCenterPx - labelHalfWidth;
-
-			const computedArrowPosition: ArrowPosition = fitsBelow ? 'bottom' : 'top';
-
+		if (!hasMeasurements || !hasValidBounds) {
 			return {
-				position: {
-					left: anchorX,
-					top: positionTop,
-					arrowLeftPercent: ARROW_CENTER_PERCENT,
-					arrowLeftOffset,
-					edgeOffsetX,
-				},
-				computedArrowPosition,
-				hadValidBounds: true,
+				position: cached.hadValidBounds ? cached.position : DEFAULT_OFFSCREEN_POSITION,
+				computedArrowPosition: cached.computedArrowPosition,
+				hadValidBounds: cached.hadValidBounds,
 				elementIdentity: currentElementIdentity,
 			};
-		},
-		{
-			position: DEFAULT_OFFSCREEN_POSITION,
-			computedArrowPosition: null,
-			hadValidBounds: false,
-			elementIdentity: '',
-		} satisfies PositionResult,
-	);
+		}
 
-	const arrowPosition = () => positionComputation().computedArrowPosition ?? 'bottom';
-	const hadValidBounds = () => positionComputation().hadValidBounds;
+		// Scope-aware: inside a scoped instance (demo showcases) the container's
+		// box is the viewport, so the label stays within the showcase card
+		// instead of spilling over the host page.
+		const viewport = getVisualViewport();
+		const viewportLeft = viewport.offsetLeft;
+		const viewportTop = viewport.offsetTop;
+		const viewportRight = viewportLeft + viewport.width;
+		const viewportBottom = viewportTop + viewport.height;
 
-	createEffect(
-		on(
-			() => props.selectionLabelShakeCount,
-			() => setIsShaking(true),
-			{ defer: true },
-		),
-	);
+		const isSelectionVisibleInViewport =
+			bounds.x + bounds.width > viewportLeft &&
+			bounds.x < viewportRight &&
+			bounds.y + bounds.height > viewportTop &&
+			bounds.y < viewportBottom;
+
+		if (!isSelectionVisibleInViewport) {
+			return {
+				position: DEFAULT_OFFSCREEN_POSITION,
+				computedArrowPosition: cached.computedArrowPosition,
+				hadValidBounds: cached.hadValidBounds,
+				elementIdentity: currentElementIdentity,
+			};
+		}
+
+		const selectionCenterX = bounds.x + bounds.width / 2;
+		const cursorX = props.mouseX ?? selectionCenterX;
+		const selectionBottom = bounds.y + bounds.height;
+		const selectionTop = bounds.y;
+
+		const actualArrowHeight = props.hideArrow ? 0 : getArrowSize(panelWidth());
+
+		// The label is cursor-anchored: left stays at cursorX and
+		// translateX(-50%) handles centering, so width changes from component
+		// name resolution or status updates never shift the anchor point.
+		// When the label would overflow the viewport, edgeOffsetX is added to
+		// the transform to push it back on-screen without moving left.
+		const anchorX = cursorX;
+		let edgeOffsetX = 0;
+		let positionTop = selectionBottom + actualArrowHeight + LABEL_GAP_PX;
+
+		const labelLeft = anchorX - labelWidth / 2;
+		const labelRight = anchorX + labelWidth / 2;
+
+		if (labelRight > viewportRight - VIEWPORT_MARGIN_PX) {
+			edgeOffsetX = viewportRight - VIEWPORT_MARGIN_PX - labelRight;
+		}
+		if (labelLeft + edgeOffsetX < viewportLeft + VIEWPORT_MARGIN_PX) {
+			edgeOffsetX = viewportLeft + VIEWPORT_MARGIN_PX - labelLeft;
+		}
+
+		const totalHeightNeeded = labelHeight + actualArrowHeight + LABEL_GAP_PX;
+		const fitsBelow = positionTop + labelHeight <= viewportBottom - VIEWPORT_MARGIN_PX;
+
+		if (!fitsBelow) {
+			positionTop = selectionTop - totalHeightNeeded;
+		}
+
+		if (positionTop < viewportTop + VIEWPORT_MARGIN_PX) {
+			positionTop = viewportTop + VIEWPORT_MARGIN_PX;
+		}
+
+		const labelHalfWidth = labelWidth / 2;
+		const arrowCenterPx = labelHalfWidth - edgeOffsetX;
+		const arrowMinPx = Math.min(ARROW_LABEL_MARGIN_PX, labelHalfWidth);
+		const arrowMaxPx = Math.max(labelWidth - ARROW_LABEL_MARGIN_PX, labelHalfWidth);
+		const clampedArrowCenterPx = Math.max(arrowMinPx, Math.min(arrowMaxPx, arrowCenterPx));
+		const arrowLeftOffset = clampedArrowCenterPx - labelHalfWidth;
+
+		const computedArrowPosition: ArrowPosition = fitsBelow ? 'bottom' : 'top';
+
+		return {
+			position: {
+				left: anchorX,
+				top: positionTop,
+				arrowLeftPercent: ARROW_CENTER_PERCENT,
+				arrowLeftOffset,
+				edgeOffsetX,
+			},
+			computedArrowPosition,
+			hadValidBounds: true,
+			elementIdentity: currentElementIdentity,
+		};
+	};
+
+	const positionResult = computePosition();
+	previousResultRef.current = positionResult;
+
+	const arrowPosition: ArrowPosition = positionResult.computedArrowPosition ?? 'bottom';
+	const hadValidBounds = positionResult.hadValidBounds;
+
+	const didMountShake = useRef(false);
+	useEffect(() => {
+		if (!didMountShake.current) {
+			didMountShake.current = true;
+			return;
+		}
+		setIsShaking(true);
+	}, [props.selectionLabelShakeCount]);
 
 	const handleKeyDown = (event: KeyboardEvent) => {
 		if (isKeyboardEventComposing(event)) {
@@ -315,18 +308,17 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 		props.onInputChange?.(inputTarget.value);
 	};
 
-	const tagDisplayResult = () =>
-		getTagDisplay({
-			tagName: props.tagName,
-			componentName: props.componentName,
-			elementsCount: props.elementsCount,
-		});
+	const tagDisplayResult = getTagDisplay({
+		tagName: props.tagName,
+		componentName: props.componentName,
+		elementsCount: props.elementsCount,
+	});
 
-	const isSinglePanelLine = createMemo(() => {
+	const isSinglePanelLine = (): boolean => {
 		if (props.error || props.discardPrompt) return false;
 		if (canInteract() && props.isPromptMode) return false;
 		return true;
-	});
+	};
 
 	const handleTagClick = (event: MouseEvent) => {
 		event.stopImmediatePropagation();
@@ -339,27 +331,30 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 		event.stopImmediatePropagation();
 		const isEditableInputVisible =
 			canInteract() && props.isPromptMode && !props.discardPrompt && props.onSubmit;
-		if (isEditableInputVisible && inputRef) {
-			focusInOverlay(inputRef, { preventScroll: true });
+		if (isEditableInputVisible && inputRef.current) {
+			focusInOverlay(inputRef.current, { preventScroll: true });
 		}
 	};
 
 	const shouldPersistDuringFade = () =>
-		hadValidBounds() && (isCompletedStatus() || props.status === 'error');
+		hadValidBounds && (isCompletedStatus() || props.status === 'error');
+
+	const discardPrompt = props.discardPrompt;
 
 	return (
-		<Show when={props.visible !== false && (props.selectionBounds || shouldPersistDuringFade())}>
+		props.visible !== false &&
+		(props.selectionBounds || shouldPersistDuringFade()) && (
 			<div
 				ref={containerRef}
 				data-react-grab-ignore-events
 				data-react-grab-selection-label
 				class="fixed font-sans text-[13px] antialiased select-none"
 				style={{
-					top: `${positionComputation().position.top}px`,
-					left: `${positionComputation().position.left}px`,
-					transform: `translateX(calc(-50% + ${positionComputation().position.edgeOffsetX}px))`,
-					'z-index': `${Z_INDEX_OVERLAY}`,
-					'pointer-events': shouldEnablePointerEvents() ? 'auto' : 'none',
+					top: `${positionResult.position.top}px`,
+					left: `${positionResult.position.left}px`,
+					transform: `translateX(calc(-50% + ${positionResult.position.edgeOffsetX}px))`,
+					zIndex: Z_INDEX_OVERLAY,
+					pointerEvents: shouldEnablePointerEvents() ? 'auto' : 'none',
 					transition: `opacity ${FADE_DURATION_MS}ms ease-out, filter ${FADE_DURATION_MS}ms ease-out`,
 					opacity: props.status === 'fading' || isInternalFading() ? 0 : 1,
 					filter: `drop-shadow(${PANEL_SHADOW}) blur(${props.status === 'fading' || isInternalFading() ? '3px' : '0'})`,
@@ -371,51 +366,50 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 				onMouseEnter={() => props.onHoverChange?.(true)}
 				onMouseLeave={() => props.onHoverChange?.(false)}
 			>
-				<Show when={!props.hideArrow}>
+				{!props.hideArrow && (
 					<Arrow
-						position={arrowPosition()}
-						leftPercent={positionComputation().position.arrowLeftPercent}
-						leftOffsetPx={positionComputation().position.arrowLeftOffset}
+						position={arrowPosition}
+						leftPercent={positionResult.position.arrowLeftPercent}
+						leftOffsetPx={positionResult.position.arrowLeftOffset}
 						labelWidth={panelWidth()}
 					/>
-				</Show>
+				)}
 
-				<Show when={isCompletedStatus() && !props.error}>
+				{isCompletedStatus() && !props.error && (
 					<CompletionView
 						statusText={props.statusText ?? 'Copied'}
 						onDismiss={props.onDismiss}
 						onFadingChange={setIsInternalFading}
 						onShowContextMenu={props.onShowContextMenu}
 					/>
-				</Show>
+				)}
 
 				<Surface
-					ref={(element) => (panelRef = element)}
+					ref={(element) => {
+						panelRef.current = element;
+					}}
 					shape={isSinglePanelLine() ? 'pill' : 'panel'}
 					class={cn('flex items-center gap-[5px] w-fit h-fit p-0', isShaking() && 'animate-shake')}
-					style={{
-						display: isCompletedStatus() && !props.error ? 'none' : undefined,
-					}}
+					style={isCompletedStatus() && !props.error ? { display: 'none' } : undefined}
 					onAnimationEnd={() => setIsShaking(false)}
 				>
-					<Show when={props.status === 'copying'}>
+					{props.status === 'copying' && (
 						<div class="contain-layout shrink-0 flex flex-col justify-center items-start w-fit h-fit max-w-[280px]">
 							<div class="contain-layout shrink-0 flex items-center gap-1 py-1.5 px-2 w-full h-fit">
 								<IconLoader size={13} class="text-[var(--rg-text-secondary)] shrink-0" />
-								<span
-									class="shimmer-text text-[13px] leading-4 font-sans font-medium h-fit tabular-nums overflow-hidden text-ellipsis whitespace-nowrap"
-									textContent={props.statusText ?? 'Grabbing…'}
-								/>
+								<span class="shimmer-text text-[13px] leading-4 font-sans font-medium h-fit tabular-nums overflow-hidden text-ellipsis whitespace-nowrap">
+									{(props.statusText ?? 'Grabbing…') as string}
+								</span>
 							</div>
 						</div>
-					</Show>
+					)}
 
-					<Show when={canInteract() && !props.isPromptMode && !props.discardPrompt}>
+					{canInteract() && !props.isPromptMode && !props.discardPrompt && (
 						<div class="contain-layout shrink-0 flex flex-col items-start w-fit h-fit">
 							<div class="contain-layout shrink-0 flex items-center gap-1 w-fit h-fit px-2 py-1.5">
 								<TagBadge
-									tagName={tagDisplayResult().tagName}
-									componentName={tagDisplayResult().componentName}
+									tagName={tagDisplayResult.tagName}
+									componentName={tagDisplayResult.componentName}
 									isClickable={Boolean(props.filePath && props.onOpen)}
 									onClick={handleTagClick}
 									onHoverChange={handleTagHoverChange}
@@ -423,14 +417,14 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 								/>
 							</div>
 						</div>
-					</Show>
+					)}
 
-					<Show when={canInteract() && props.isPromptMode && !props.discardPrompt}>
+					{canInteract() && props.isPromptMode && !props.discardPrompt && (
 						<div class="contain-layout shrink-0 flex flex-col justify-center items-start w-fit h-fit min-w-[150px] max-w-[280px]">
 							<div class="contain-layout shrink-0 flex items-center gap-1 pt-1.5 pb-1 w-fit h-fit px-2 max-w-full">
 								<TagBadge
-									tagName={tagDisplayResult().tagName}
-									componentName={tagDisplayResult().componentName}
+									tagName={tagDisplayResult.tagName}
+									componentName={tagDisplayResult.componentName}
 									isClickable={Boolean(props.filePath && props.onOpen)}
 									onClick={handleTagClick}
 									onHoverChange={handleTagHoverChange}
@@ -440,11 +434,11 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 								<div class="shrink-0 flex justify-between items-end w-full min-h-4">
 									<textarea
 										ref={(element) => {
-											inputRef = element;
-											// This ref fires during Solid's render commit when the
-											// surrounding DOM tree isn't fully built yet, so focusing
-											// synchronously can fail or cause a scroll jump.
-											if (props.onSubmit) {
+											inputRef.current = element;
+											// This ref fires during render commit when the surrounding
+											// DOM tree isn't fully built yet, so focusing synchronously
+											// can fail or cause a scroll jump.
+											if (props.onSubmit && element) {
 												queueMicrotask(() => {
 													focusInOverlay(element, { preventScroll: true });
 													autoResizeTextarea(element, TEXTAREA_MAX_HEIGHT_PX);
@@ -457,10 +451,10 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 										aria-keyshortcuts="Enter Escape"
 										class="text-[var(--rg-text-primary)] text-[13px] leading-4 font-medium bg-transparent border-none resize-none flex-1 p-0 m-0 wrap-break-word overflow-y-auto"
 										style={{
-											'field-sizing': 'content',
-											'min-height': '16px',
-											'max-height': `${TEXTAREA_MAX_HEIGHT_PX}px`,
-											'scrollbar-width': 'none',
+											fieldSizing: 'content',
+											minHeight: '16px',
+											maxHeight: `${TEXTAREA_MAX_HEIGHT_PX}px`,
+											scrollbarWidth: 'none',
 										}}
 										value={props.inputValue ?? ''}
 										onInput={handleInput}
@@ -469,7 +463,7 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 										rows={1}
 										readOnly={!props.onSubmit}
 									/>
-									<Show when={props.onSubmit}>
+									{props.onSubmit && (
 										<button
 											data-react-grab-submit
 											type="button"
@@ -479,41 +473,37 @@ export const SelectionLabel: Component<SelectionLabelProps> = (props) => {
 										>
 											<IconSubmit size={10} aria-hidden="true" class="text-[var(--rg-submit-fg)]" />
 										</button>
-									</Show>
+									)}
 								</div>
 							</BottomSection>
 						</div>
-					</Show>
+					)}
 
-					<Show when={props.discardPrompt} keyed>
-						{(discardPrompt) => (
-							<DiscardPrompt
-								label={
-									discardPrompt.isKeyboardSelection ? 'Discard selection?' : discardPrompt.label
+					{discardPrompt && (
+						<DiscardPrompt
+							label={discardPrompt.isKeyboardSelection ? 'Discard selection?' : discardPrompt.label}
+							showCancel={!discardPrompt.isKeyboardSelection}
+							cancelOnEscape={discardPrompt.cancelOnEscape}
+							onConfirm={discardPrompt.onConfirm}
+							onCopy={discardPrompt.onCopy}
+							onCancel={() => {
+								if (!discardPrompt.isKeyboardSelection) {
+									discardPrompt.onCancel?.();
 								}
-								showCancel={!discardPrompt.isKeyboardSelection}
-								cancelOnEscape={discardPrompt.cancelOnEscape}
-								onConfirm={discardPrompt.onConfirm}
-								onCopy={discardPrompt.onCopy}
-								onCancel={() => {
-									if (!discardPrompt.isKeyboardSelection) {
-										discardPrompt.onCancel?.();
-									}
-									focusInOverlay(inputRef, { preventScroll: true });
-								}}
-							/>
-						)}
-					</Show>
+								focusInOverlay(inputRef.current, { preventScroll: true });
+							}}
+						/>
+					)}
 
-					<Show when={props.error}>
+					{props.error && (
 						<ErrorView
-							error={props.error!}
+							error={props.error}
 							onAcknowledge={props.onAcknowledgeError}
 							onRetry={props.onRetry}
 						/>
-					</Show>
+					)}
 				</Surface>
 			</div>
-		</Show>
+		)
 	);
 };

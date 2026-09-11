@@ -1,4 +1,5 @@
-import { createSignal, onCleanup, Show, type Component } from 'solid-js';
+/** @jsxImportSource octane */
+import { useEffect, useMemo, useRef, useState } from 'octane';
 import type { CompletionViewProps } from '../../types.js';
 import { FEEDBACK_DURATION_MS, FADE_DURATION_MS } from '../../constants.js';
 import { createConfirmationKeyboard } from '../../utils/create-confirmation-keyboard.js';
@@ -14,7 +15,7 @@ interface MoreOptionsButtonProps {
 	onClick: () => void;
 }
 
-const MoreOptionsButton: Component<MoreOptionsButtonProps> = (props) => {
+const MoreOptionsButton = (props: MoreOptionsButtonProps) => {
 	return (
 		<button
 			type="button"
@@ -25,13 +26,12 @@ const MoreOptionsButton: Component<MoreOptionsButtonProps> = (props) => {
 				buttonVariants({ variant: 'ghost' }),
 				'group size-4 text-[var(--rg-text-secondary)] hover:text-[var(--rg-text-primary)]',
 			)}
-			// The on: prefix attaches a native event listener (rather than using
-			// SolidJS delegation) so stopImmediatePropagation can beat both
-			// delegated handlers and document-level capture listeners.
-			on:pointerdown={(event) => {
+			// stopImmediatePropagation beats both the delegated handlers and any
+			// document-level capture listeners for this pointerdown/click.
+			onPointerDown={(event) => {
 				event.stopImmediatePropagation();
 			}}
-			on:click={(event) => {
+			onClick={(event) => {
 				event.stopImmediatePropagation();
 				props.onClick();
 			}}
@@ -45,57 +45,71 @@ const MoreOptionsButton: Component<MoreOptionsButtonProps> = (props) => {
 	);
 };
 
-export const CompletionView: Component<CompletionViewProps> = (props) => {
-	let fadeTimeoutId: number | undefined;
-	let dismissTimeoutId: number | undefined;
-	const [didCopy, setDidCopy] = createSignal(false);
-	const [isFading, setIsFading] = createSignal(false);
-	const displayStatusText = () => (didCopy() ? 'Copied' : props.statusText);
+export const CompletionView = (props: CompletionViewProps) => {
+	const fadeTimeoutRef = useRef<number | undefined>(undefined);
+	const dismissTimeoutRef = useRef<number | undefined>(undefined);
+	const [didCopy, setDidCopy, getDidCopy] = useState(false);
+	const [isFading, setIsFading] = useState(false);
+	const displayStatusText = () => (didCopy ? 'Copied' : props.statusText);
 
 	const handleShowContextMenu = () => {
-		if (fadeTimeoutId !== undefined) window.clearTimeout(fadeTimeoutId);
-		if (dismissTimeoutId !== undefined) window.clearTimeout(dismissTimeoutId);
+		if (fadeTimeoutRef.current !== undefined) window.clearTimeout(fadeTimeoutRef.current);
+		if (dismissTimeoutRef.current !== undefined) window.clearTimeout(dismissTimeoutRef.current);
 		setIsFading(true);
 		props.onFadingChange?.(true);
 		props.onShowContextMenu?.();
 	};
 
 	const handleAccept = () => {
-		if (didCopy()) return;
+		if (getDidCopy()) return;
 		setDidCopy(true);
-		fadeTimeoutId = window.setTimeout(() => {
+		fadeTimeoutRef.current = window.setTimeout(() => {
 			setIsFading(true);
 			props.onFadingChange?.(true);
-			dismissTimeoutId = window.setTimeout(() => {
+			dismissTimeoutRef.current = window.setTimeout(() => {
 				props.onDismiss?.();
 			}, FADE_DURATION_MS);
 		}, FEEDBACK_DURATION_MS - FADE_DURATION_MS);
 	};
 
-	const { claimFocus } = createConfirmationKeyboard({
-		onEnter: (event) => {
-			if (isEventFromOverlay(event, 'data-react-grab-more-options')) {
-				event.preventDefault();
-				event.stopPropagation();
-				handleShowContextMenu();
-				return;
-			}
-			if (isEventFromOverlay(event, 'data-react-grab-context-menu')) return;
-			event.preventDefault();
-			event.stopPropagation();
-			handleAccept();
-		},
-		onEscape: (event) => {
-			event.preventDefault();
-			event.stopPropagation();
-			props.onDismiss?.();
-		},
-	});
+	// The keyboard controller outlives individual renders, so route its handlers
+	// through a ref that always holds the latest closures.
+	const latestRef = useRef({ handleShowContextMenu, handleAccept, onDismiss: props.onDismiss });
+	latestRef.current = { handleShowContextMenu, handleAccept, onDismiss: props.onDismiss };
 
-	onCleanup(() => {
-		if (fadeTimeoutId !== undefined) window.clearTimeout(fadeTimeoutId);
-		if (dismissTimeoutId !== undefined) window.clearTimeout(dismissTimeoutId);
-	});
+	const controller = useMemo(
+		() =>
+			createConfirmationKeyboard({
+				onEnter: (event) => {
+					if (isEventFromOverlay(event, 'data-react-grab-more-options')) {
+						event.preventDefault();
+						event.stopPropagation();
+						latestRef.current.handleShowContextMenu();
+						return;
+					}
+					if (isEventFromOverlay(event, 'data-react-grab-context-menu')) return;
+					event.preventDefault();
+					event.stopPropagation();
+					latestRef.current.handleAccept();
+				},
+				onEscape: (event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					latestRef.current.onDismiss?.();
+				},
+			}),
+		[],
+	);
+	const claimFocus = controller.claimFocus;
+
+	useEffect(() => {
+		const unregister = controller.register();
+		return () => {
+			unregister();
+			if (fadeTimeoutRef.current !== undefined) window.clearTimeout(fadeTimeoutRef.current);
+			if (dismissTimeoutRef.current !== undefined) window.clearTimeout(dismissTimeoutRef.current);
+		};
+	}, []);
 
 	return (
 		<Surface
@@ -105,56 +119,47 @@ export const CompletionView: Component<CompletionViewProps> = (props) => {
 			aria-live="polite"
 			aria-atomic="true"
 			class="shrink-0 flex flex-col justify-center items-end w-fit h-fit max-w-[280px] transition-opacity duration-100 ease-out"
-			style={{ opacity: isFading() ? 0 : 1 }}
+			style={{ opacity: isFading ? 0 : 1 }}
 			onPointerDown={claimFocus}
 			onClick={claimFocus}
 		>
-			<Show when={!didCopy() && props.onDismiss}>
+			{!didCopy && props.onDismiss && (
 				<div class="contain-layout shrink-0 flex items-center justify-between gap-2 pt-1.5 pb-1 px-2 w-full h-fit">
-					<span
-						class="text-[var(--rg-text-primary)] text-[13px] leading-4 font-sans font-medium h-fit tabular-nums overflow-hidden text-ellipsis whitespace-nowrap min-w-0"
-						textContent={displayStatusText()}
-					/>
+					<span class="text-[var(--rg-text-primary)] text-[13px] leading-4 font-sans font-medium h-fit tabular-nums overflow-hidden text-ellipsis whitespace-nowrap min-w-0">
+						{displayStatusText() as string}
+					</span>
 					<div class="contain-layout shrink-0 flex items-center gap-2 h-fit">
-						<Show when={props.onShowContextMenu}>
-							<MoreOptionsButton onClick={handleShowContextMenu} />
-						</Show>
-						<Show when={props.onDismiss}>
-							<Button
-								data-react-grab-dismiss
-								class="gap-1"
-								aria-keyshortcuts="Enter"
-								onClick={handleAccept}
-								disabled={didCopy()}
-								aria-disabled={didCopy()}
-							>
-								<span class="text-[var(--rg-text-primary)] text-[13px] leading-3.5 font-sans font-medium">
-									Keep
-								</span>
-								<Show when={!didCopy()}>
-									<IconReturn size={10} class="text-[var(--rg-text-secondary)]" />
-								</Show>
-							</Button>
-						</Show>
+						{props.onShowContextMenu && <MoreOptionsButton onClick={handleShowContextMenu} />}
+						{/* onDismiss is already guaranteed by the enclosing `props.onDismiss &&`. */}
+						<Button
+							data-react-grab-dismiss
+							class="gap-1"
+							aria-keyshortcuts="Enter"
+							onClick={handleAccept}
+							disabled={didCopy}
+							aria-disabled={didCopy}
+						>
+							<span class="text-[var(--rg-text-primary)] text-[13px] leading-3.5 font-sans font-medium">
+								Keep
+							</span>
+							{!didCopy && <IconReturn size={10} class="text-[var(--rg-text-secondary)]" />}
+						</Button>
 					</div>
 				</div>
-			</Show>
-			<Show when={didCopy() || !props.onDismiss}>
+			)}
+			{(didCopy || !props.onDismiss) && (
 				<div class="contain-layout shrink-0 flex items-center gap-0.5 py-1.5 px-2 w-full h-fit">
 					<IconCheck
 						size={14}
 						aria-hidden="true"
 						class="text-[var(--rg-text-primary-85)] shrink-0"
 					/>
-					<span
-						class="text-[var(--rg-text-primary)] text-[13px] leading-4 font-sans font-medium h-fit tabular-nums overflow-hidden text-ellipsis whitespace-nowrap min-w-0"
-						textContent={displayStatusText()}
-					/>
-					<Show when={props.onShowContextMenu}>
-						<MoreOptionsButton onClick={handleShowContextMenu} />
-					</Show>
+					<span class="text-[var(--rg-text-primary)] text-[13px] leading-4 font-sans font-medium h-fit tabular-nums overflow-hidden text-ellipsis whitespace-nowrap min-w-0">
+						{displayStatusText() as string}
+					</span>
+					{props.onShowContextMenu && <MoreOptionsButton onClick={handleShowContextMenu} />}
 				</div>
-			</Show>
+			)}
 		</Surface>
 	);
 };

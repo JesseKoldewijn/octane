@@ -26,7 +26,7 @@ Adapted unit/e2e suites regenerate under `tests/upstream/` (gitignored).
 | --- | --- |
 | `bippy` | **reimplement-in-parent** via `src/octane-adapter.ts` → `octane/inspect` |
 | `@react-grab/cli` | **reuse-package** (`@react-grab/cli@0.2.0` runtime dependency) |
-| Overlay UI | SolidJS 1.9 — kept/adapted under MIT |
+| Overlay UI | Octane — ported from upstream SolidJS 1.9 under MIT; mounted with `inspect: false` |
 | `react` peer | Dropped; Octane is the host framework |
 
 ## Public export crosswalk
@@ -34,7 +34,7 @@ Adapted unit/e2e suites regenerate under `tests/upstream/` (gitignored).
 | Upstream export | Octane binding | Notes |
 | --- | --- | --- |
 | `react-grab` (`init`, plugins, types, errors, `generateSnippet`, globals) | `@octanejs/grab` → `src/index.ts` | Auto-init also sets `__OCTANE_GRAB__` (and keeps `__REACT_GRAB__`) |
-| `react-grab/core` | `@octanejs/grab/core` | Solid core + overlay |
+| `react-grab/core` | `@octanejs/grab/core` | Octane overlay controller + UI |
 | `react-grab/primitives` | `@octanejs/grab/primitives` | Freeze/hit-testing helpers |
 | `react-grab/styles.css` | `@octanejs/grab/styles.css` | Authored Tailwind source (app import) |
 | `react-grab/dist/styles.css` (shadow inject) | `src/overlay-styles.css` | Tailwind-compiled + rem→px for shadow overlay (`pnpm css:build`) |
@@ -43,6 +43,7 @@ Adapted unit/e2e suites regenerate under `tests/upstream/` (gitignored).
 ### Notable divergences
 
 - Fiber APIs are opaque Octane owners (`octane-adapter`), not React Fibers.
+- Overlay UI is Octane (not Solid); the overlay root uses `createRoot(..., { inspect: false })` so it does not pollute `octane/inspect` owner stacks.
 - `freezeUpdates` calls `octane/inspect` `pauseUpdates` instead of patching React's dispatcher.
 - Window globals: prefer `__OCTANE_GRAB__` / `__OCTANE_GRAB_DISABLED__`; React-named aliases remain.
 - Next.js server-frame symbolication and R3F selection remain blocked pending bridges.

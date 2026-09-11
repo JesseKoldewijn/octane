@@ -1,7 +1,7 @@
-import { createSignal, onCleanup, type Accessor } from 'solid-js';
 import type { Position } from '../types.js';
 import type { SnapEdge } from '../components/toolbar/state.js';
 import { TOOLBAR_DRAG_THRESHOLD_PX, TOOLBAR_SNAP_ANIMATION_DURATION_MS } from '../constants.js';
+import { onCleanup } from '../reactivity/index.js';
 import { nativeCancelAnimationFrame, nativeRequestAnimationFrame } from './native-raf.js';
 import { ignoreRealInput } from './runtime-mode.js';
 import {
@@ -12,7 +12,7 @@ import {
 
 interface ToolbarDragConfig {
 	getContainerRef: () => HTMLDivElement | undefined;
-	isCollapsed: Accessor<boolean>;
+	isCollapsed: () => boolean;
 	getExpandedDimensions: () => { width: number; height: number };
 	onDragStart: () => void;
 	onPositionUpdate: (position: Position) => void;
@@ -27,17 +27,23 @@ interface ToolbarDragConfig {
 }
 
 interface ToolbarDragResult {
-	isDragging: Accessor<boolean>;
-	isSnapping: Accessor<boolean>;
+	// `useSyncExternalStore(subscribe, isDragging)` /
+	// `useSyncExternalStore(subscribe, isSnapping)` drive the toolbar's reactive
+	// drag/snap state without a reactive runtime.
+	subscribe: (listener: () => void) => () => void;
+	isDragging: () => boolean;
+	isSnapping: () => boolean;
 	handlePointerDown: (event: PointerEvent) => void;
 	createDragAwareHandler: (callback: () => void) => (event: MouseEvent) => void;
+	dispose: () => void;
 }
 
 export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult => {
-	const [isDragging, setIsDragging] = createSignal(false);
-	const [isSnapping, setIsSnapping] = createSignal(false);
-	const [hasDragMoved, setHasDragMoved] = createSignal(false);
-	const [velocity, setVelocity] = createSignal<Position>({ x: 0, y: 0 });
+	let isDraggingState = false;
+	let isSnappingState = false;
+	// hasDragMoved and velocity are internal-only, so they never notify subscribers.
+	let hasDragMoved = false;
+	let velocity: Position = { x: 0, y: 0 };
 	let dragOffset: Position = { x: 0, y: 0 };
 
 	let lastPointerPosition = { x: 0, y: 0, time: 0 };
@@ -46,6 +52,23 @@ export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult 
 	let snapAnimationFrame: number | undefined;
 	let snapAnimationTimeout: ReturnType<typeof setTimeout> | undefined;
 	let dragAbortController: AbortController | null = null;
+
+	const listeners = new Set<() => void>();
+	const notify = (): void => {
+		for (const listener of [...listeners]) listener();
+	};
+
+	const setIsDragging = (value: boolean): void => {
+		if (isDraggingState === value) return;
+		isDraggingState = value;
+		notify();
+	};
+
+	const setIsSnapping = (value: boolean): void => {
+		if (isSnappingState === value) return;
+		isSnappingState = value;
+		notify();
+	};
 
 	const teardownDragListeners = () => {
 		dragAbortController?.abort();
@@ -59,7 +82,7 @@ export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult 
 	};
 
 	const handleWindowPointerMove = (event: PointerEvent) => {
-		if (!hasDragMoved()) {
+		if (!hasDragMoved) {
 			const distanceMoved = Math.hypot(
 				event.clientX - pointerStartPosition.x,
 				event.clientY - pointerStartPosition.y,
@@ -67,7 +90,7 @@ export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult 
 			if (distanceMoved <= TOOLBAR_DRAG_THRESHOLD_PX) {
 				return;
 			}
-			setHasDragMoved(true);
+			hasDragMoved = true;
 			config.onDragStart();
 		}
 
@@ -77,7 +100,7 @@ export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult 
 		if (deltaTime > 0) {
 			const newVelocityX = (event.clientX - lastPointerPosition.x) / deltaTime;
 			const newVelocityY = (event.clientY - lastPointerPosition.y) / deltaTime;
-			setVelocity({ x: newVelocityX, y: newVelocityY });
+			velocity = { x: newVelocityX, y: newVelocityY };
 		}
 
 		lastPointerPosition = { x: event.clientX, y: event.clientY, time: now };
@@ -91,7 +114,7 @@ export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult 
 	const handleWindowPointerUp = () => {
 		teardownDragListeners();
 
-		const didMove = hasDragMoved();
+		const didMove = hasDragMoved;
 		setIsDragging(false);
 
 		if (!didMove) {
@@ -104,7 +127,7 @@ export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult 
 		const rect = containerRef?.getBoundingClientRect();
 		if (!rect) return;
 
-		const currentVelocity = velocity();
+		const currentVelocity = velocity;
 		const snap = getSnapPosition(
 			rect.left,
 			rect.top,
@@ -155,7 +178,7 @@ export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult 
 
 	const handlePointerDown = ignoreRealInput((event: PointerEvent) => {
 		if (event.button !== 0) return;
-		if (config.isCollapsed() || isSnapping()) return;
+		if (config.isCollapsed() || isSnappingState) return;
 
 		const containerRef = config.getContainerRef();
 		const rect = containerRef?.getBoundingClientRect();
@@ -168,8 +191,8 @@ export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult 
 			y: event.clientY - rect.top,
 		};
 		setIsDragging(true);
-		setHasDragMoved(false);
-		setVelocity({ x: 0, y: 0 });
+		hasDragMoved = false;
+		velocity = { x: 0, y: 0 };
 		lastPointerPosition = {
 			x: event.clientX,
 			y: event.clientY,
@@ -193,16 +216,25 @@ export const createToolbarDrag = (config: ToolbarDragConfig): ToolbarDragResult 
 		callback();
 	};
 
-	onCleanup(() => {
+	const dispose = (): void => {
 		teardownDragListeners();
 		cancelSnapAnimationFrame();
 		clearTimeout(snapAnimationTimeout);
-	});
+	};
+
+	// When constructed inside a reactive root (adapted upstream suites), dispose
+	// with the owner — same contract as Solid's onCleanup.
+	onCleanup(dispose);
 
 	return {
-		isDragging,
-		isSnapping,
+		subscribe: (listener) => {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+		isDragging: () => isDraggingState,
+		isSnapping: () => isSnappingState,
 		handlePointerDown,
 		createDragAwareHandler,
+		dispose,
 	};
 };

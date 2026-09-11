@@ -1,4 +1,4 @@
-import type { JSX } from 'solid-js';
+import type { OctaneNode } from 'octane';
 
 export interface Position {
 	x: number;
@@ -539,7 +539,7 @@ export interface TagBadgeProps {
 }
 
 export interface BottomSectionProps {
-	children: JSX.Element;
+	children: OctaneNode;
 }
 
 export interface DiscardPromptProps {

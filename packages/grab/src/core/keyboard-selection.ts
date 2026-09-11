@@ -1,4 +1,4 @@
-import { createSignal, type Accessor } from 'solid-js';
+import { createSignal, type Accessor } from '../reactivity/index.js';
 import { createPointerMovePromptHandoff } from '../utils/create-pointer-move-prompt-handoff.js';
 import { isElementConnected } from '../utils/is-element-connected.js';
 

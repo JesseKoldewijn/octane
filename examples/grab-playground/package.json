@@ -5,7 +5,6 @@
   "type": "module",
   "description": "1:1 Octane port of react-grab e2e-app-vite for validating @octanejs/grab.",
   "scripts": {
-    "prepare": "node ./scripts/ensure-solid-babel-vendor.mjs",
     "dev": "vite --host --port 5299 --strictPort",
     "build": "vite build",
     "preview": "vite preview --host --port 5299 --strictPort",
@@ -18,8 +17,6 @@
     "octane": "workspace:*"
   },
   "devDependencies": {
-    "@babel/core": "^7.28.0",
-    "@babel/preset-typescript": "^7.27.0",
     "@playwright/test": "catalog:default",
     "@tailwindcss/vite": "^4.1.0",
     "@types/node": "catalog:default",

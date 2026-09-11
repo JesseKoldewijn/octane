@@ -1,5 +1,5 @@
-import { createStore, produce } from 'solid-js/store';
-import { batch, createSignal } from 'solid-js';
+import { createStore, produce } from '../reactivity/index.js';
+import { batch, createSignal } from '../reactivity/index.js';
 import type { Position, GrabbedBox, SelectionLabelInstance } from '../types.js';
 import { OFFSCREEN_POSITION } from '../constants.js';
 import { createElementBounds } from '../utils/create-element-bounds.js';
@@ -209,7 +209,7 @@ const createGrabStore = (input: GrabStoreInput) => {
 
 	const updateFrozenElements = (mutator: (draft: GrabStore) => void) => {
 		setStore(
-			produce((draft) => {
+			produce((draft: GrabStore) => {
 				mutator(draft);
 				draft.frozenElement = draft.frozenElements.length > 0 ? draft.frozenElements[0] : null;
 				draft.frozenDragRect = null;
@@ -261,7 +261,7 @@ const createGrabStore = (input: GrabStoreInput) => {
 			batch(() => {
 				setCurrent({ state: 'idle' });
 				setStore(
-					produce((draft) => {
+					produce((draft: GrabStore) => {
 						draft.wasActivatedByToggle = false;
 						draft.pendingCommentMode = false;
 						draft.inputText = '';
@@ -309,7 +309,7 @@ const createGrabStore = (input: GrabStoreInput) => {
 			if (current().state === 'active') {
 				batch(() => {
 					setStore(
-						produce((draft) => {
+						produce((draft: GrabStore) => {
 							draft.frozenElement = null;
 							draft.frozenElements = [];
 							draft.frozenDragRect = null;
@@ -353,7 +353,7 @@ const createGrabStore = (input: GrabStoreInput) => {
 		shiftDragStart: (delta: Position) => {
 			const currentState = current();
 			if (currentState.state === 'active' && currentState.phase === 'dragging-reposition') {
-				setStore('dragStart', (dragStart) => ({
+				setStore('dragStart', (dragStart: Position) => ({
 					x: dragStart.x + delta.x,
 					y: dragStart.y + delta.y,
 				}));
@@ -557,11 +557,11 @@ const createGrabStore = (input: GrabStoreInput) => {
 		},
 
 		incrementSelectionInteractionLockDepth: () => {
-			setStore('selectionInteractionLockDepth', (currentLockDepth) => currentLockDepth + 1);
+			setStore('selectionInteractionLockDepth', (currentLockDepth: number) => currentLockDepth + 1);
 		},
 
 		decrementSelectionInteractionLockDepth: () => {
-			setStore('selectionInteractionLockDepth', (currentLockDepth) =>
+			setStore('selectionInteractionLockDepth', (currentLockDepth: number) =>
 				Math.max(0, currentLockDepth - 1),
 			);
 		},
@@ -579,11 +579,13 @@ const createGrabStore = (input: GrabStoreInput) => {
 
 		addGrabbedBox: (box: GrabbedBox) => {
 			if (box.element) trackElementAnchor(box.element);
-			setStore('grabbedBoxes', (boxes) => [...boxes, box]);
+			setStore('grabbedBoxes', (boxes: GrabbedBox[]) => [...boxes, box]);
 		},
 
 		removeGrabbedBox: (boxId: string) => {
-			setStore('grabbedBoxes', (boxes) => boxes.filter((box) => box.id !== boxId));
+			setStore('grabbedBoxes', (boxes: GrabbedBox[]) =>
+				boxes.filter((box: GrabbedBox) => box.id !== boxId),
+			);
 		},
 
 		clearGrabbedBoxes: () => {
@@ -595,7 +597,7 @@ const createGrabStore = (input: GrabStoreInput) => {
 			for (const instanceElement of instance.elements ?? []) {
 				trackElementAnchor(instanceElement);
 			}
-			setStore('labelInstances', (instances) => [...instances, instance]);
+			setStore('labelInstances', (instances: SelectionLabelInstance[]) => [...instances, instance]);
 		},
 
 		updateLabelInstance: (
@@ -620,8 +622,8 @@ const createGrabStore = (input: GrabStoreInput) => {
 		},
 
 		removeLabelInstance: (instanceId: string) => {
-			setStore('labelInstances', (instances) =>
-				instances.filter((instance) => instance.id !== instanceId),
+			setStore('labelInstances', (instances: SelectionLabelInstance[]) =>
+				instances.filter((instance: SelectionLabelInstance) => instance.id !== instanceId),
 			);
 		},
 

@@ -1,4 +1,5 @@
-import { createEffect, createSignal, on, onCleanup, onMount, type Component } from 'solid-js';
+/** @jsxImportSource octane */
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'octane';
 import type { Position } from '../../types.js';
 import { cn } from '../../utils/cn.js';
 import { loadToolbarState, saveToolbarState, type SnapEdge, type ToolbarState } from './state.js';
@@ -52,64 +53,96 @@ interface ToolbarProps {
 	onToggleToolbarMenu?: () => void;
 }
 
-export const Toolbar: Component<ToolbarProps> = (props) => {
-	let containerRef: HTMLDivElement | undefined;
-	let selectButtonRef: HTMLButtonElement | undefined;
-	let unfreezeUpdatesCallback: (() => void) | null = null;
+export const Toolbar = (props: ToolbarProps) => {
+	const containerRef = useRef<HTMLDivElement | null>(null);
+	const selectButtonRef = useRef<HTMLButtonElement | null>(null);
+	const unfreezeUpdatesCallback = useRef<(() => void) | null>(null);
+	// Persistent, non-reactive state that outlives a render. In Solid these were
+	// component-scope `let` bindings (body runs once); here the body reruns each
+	// render, so they must live in refs.
+	const expandedDimensions = useRef({
+		width: TOOLBAR_DEFAULT_WIDTH_PX,
+		height: TOOLBAR_DEFAULT_HEIGHT_PX,
+	});
+	const resizeTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	const collapseAnimationTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	const lastObservedExpandedSize = useRef<{ width: number; height: number } | null>(null);
+	const scopedScrollFrameId = useRef<number | null>(null);
 
-	const savedState = loadToolbarState();
+	// Props are a fresh object each render; keep the latest reachable from the
+	// once-created drag controller and mount-once listeners so their callbacks
+	// never read stale props.
+	const propsRef = useRef(props);
+	propsRef.current = props;
 
-	const [isVisible, setIsVisible] = createSignal(false);
-	const [isCollapsed, setIsCollapsed] = createSignal(false);
-	const [isResizing, setIsResizing] = createSignal(false);
-	const [snapEdge, setSnapEdge] = createSignal<SnapEdge>(savedState?.edge ?? 'bottom');
-	const [positionRatio, setPositionRatio] = createSignal(
+	const savedState = useMemo(() => loadToolbarState(), []);
+
+	const [, setIsVisible, isVisible] = useState(false);
+	const [, setIsCollapsed, isCollapsed] = useState(false);
+	const [, setIsResizing, isResizing] = useState(false);
+	const [, setSnapEdge, snapEdge] = useState<SnapEdge>(savedState?.edge ?? 'bottom');
+	const [, setPositionRatio, positionRatio] = useState(
 		savedState?.ratio ?? TOOLBAR_DEFAULT_POSITION_RATIO,
 	);
-	const [position, setPosition] = createSignal({ x: 0, y: 0 });
-	const [isShaking, setIsShaking] = createSignal(false);
-	const [isCollapseAnimating, setIsCollapseAnimating] = createSignal(false);
-	const [isChevronPressed, setIsChevronPressed] = createSignal(false);
-	const [isToolbarHovered, setIsToolbarHovered] = createSignal(false);
-	const [selectIconRotationDeg, setSelectIconRotationDeg] = createSignal(0);
-	const [hoveredActionId, setHoveredActionId] = createSignal<string | null>(null);
+	const [, setPosition, position] = useState<Position>({ x: 0, y: 0 });
+	const [, setIsShaking, isShaking] = useState(false);
+	const [, setIsCollapseAnimating, isCollapseAnimating] = useState(false);
+	const [, setIsChevronPressed, isChevronPressed] = useState(false);
+	const [, setIsToolbarHovered, isToolbarHovered] = useState(false);
+	const [, setSelectIconRotationDeg, selectIconRotationDeg] = useState(0);
+	const [, setHoveredActionId, hoveredActionId] = useState<string | null>(null);
+	const [, setCollapsedDimensions, collapsedDimensions] = useState(
+		getCollapsedDimsForEdge(savedState?.edge ?? 'bottom'),
+	);
 
 	const releaseInteractionFreeze = () => {
-		unfreezeUpdatesCallback?.();
-		unfreezeUpdatesCallback = null;
+		unfreezeUpdatesCallback.current?.();
+		unfreezeUpdatesCallback.current = null;
 		// While grab mode is active, core owns the global freeze and releases it
 		// on deactivation; only release it when this hover latch is the sole owner.
-		if (!props.isActive) unfreezeGlobalInteractions();
+		if (!propsRef.current.isActive) unfreezeGlobalInteractions();
 	};
 
-	const drag = createToolbarDrag({
-		getContainerRef: () => containerRef,
-		isCollapsed,
-		getExpandedDimensions: () => expandedDimensions,
-		onDragStart: () => {
-			// Pointer capture during a drag suppresses the button's mouseleave, so
-			// clear the hover here or the tooltip flashes at the snapped position
-			// once isDragging/isSnapping settle.
-			setHoveredActionId(null);
-			if (unfreezeUpdatesCallback) releaseInteractionFreeze();
-		},
-		onPositionUpdate: (newPosition) => setPosition(newPosition),
-		onSnapEdgeChange: (edge, ratio) => {
-			syncCollapsedDimensionsToEdge(snapEdge(), edge);
-			setSnapEdge(edge);
-			setPositionRatio(ratio);
-		},
-		onSnapComplete: (result) => {
-			expandedDimensions = result.expandedDimensions;
-			setPosition(result.position);
-			saveAndNotify({
-				edge: result.edge,
-				ratio: result.ratio,
-				collapsed: isCollapsed(),
-				enabled: !isCollapsed(),
-			});
-		},
-	});
+	const drag = useMemo(
+		() =>
+			createToolbarDrag({
+				getContainerRef: () => containerRef.current ?? undefined,
+				isCollapsed,
+				getExpandedDimensions: () => expandedDimensions.current,
+				onDragStart: () => {
+					// Pointer capture during a drag suppresses the button's mouseleave, so
+					// clear the hover here or the tooltip flashes at the snapped position
+					// once isDragging/isSnapping settle.
+					setHoveredActionId(null);
+					if (unfreezeUpdatesCallback.current) releaseInteractionFreeze();
+				},
+				onPositionUpdate: (newPosition) => setPosition(newPosition),
+				onSnapEdgeChange: (edge, ratio) => {
+					syncCollapsedDimensionsToEdge(snapEdge(), edge);
+					setSnapEdge(edge);
+					setPositionRatio(ratio);
+				},
+				onSnapComplete: (result) => {
+					expandedDimensions.current = result.expandedDimensions;
+					setPosition(result.position);
+					saveAndNotify({
+						edge: result.edge,
+						ratio: result.ratio,
+						collapsed: isCollapsed(),
+						enabled: !isCollapsed(),
+					});
+				},
+			}),
+		[],
+	);
+
+	// Subscribe to the drag store so drag/snap changes re-render the toolbar.
+	// Render-path reads use these reactive values; event/listener code reads the
+	// live `drag.isDragging()`/`drag.isSnapping()` for the current value.
+	const isDragging = useSyncExternalStore(drag.subscribe, drag.isDragging);
+	const isSnapping = useSyncExternalStore(drag.subscribe, drag.isSnapping);
+
+	useEffect(() => () => drag.dispose(), []);
 
 	const isVertical = () => !isHorizontalEdge(snapEdge());
 
@@ -117,7 +150,7 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 
 	// Activation paths that bypass the toolbar button use the implicit Copy flow,
 	// while toolbar activation tracks the selected default action explicitly.
-	const currentActionId = () => props.defaultActionId ?? DEFAULT_ACTION_ID;
+	const currentActionId = () => propsRef.current.defaultActionId ?? DEFAULT_ACTION_ID;
 	const currentActionLabel = () => props.defaultActionLabel ?? 'Copy';
 	const isCurrentActionActive = () =>
 		Boolean(props.isActive) && (props.activeActionId ?? DEFAULT_ACTION_ID) === currentActionId();
@@ -126,8 +159,8 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 		hoveredActionId() === actionId &&
 		!props.isActive &&
 		!isCollapsed() &&
-		!drag.isDragging() &&
-		!drag.isSnapping() &&
+		!isDragging &&
+		!isSnapping &&
 		!props.isContextMenuOpen;
 	const tooltipPosition = (): 'top' | 'bottom' | 'left' | 'right' => {
 		switch (snapEdge()) {
@@ -152,8 +185,8 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 		onMouseEnter: (event: MouseEvent) => {
 			if (drag.isDragging()) return;
 			setHoveredActionId(getActionId());
-			if (!unfreezeUpdatesCallback) {
-				unfreezeUpdatesCallback = freezeUpdates();
+			if (!unfreezeUpdatesCallback.current) {
+				unfreezeUpdatesCallback.current = freezeUpdates();
 				freezeGlobalInteractions(event.clientX, event.clientY);
 			}
 		},
@@ -166,85 +199,65 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 		},
 	});
 
-	createEffect(
-		on(
-			() => props.shakeCount,
-			(count) => {
-				if (count && !props.enabled) {
-					setIsShaking(true);
-				}
-			},
-		),
-	);
+	useEffect(() => {
+		// `on` without defer runs on mount too, matching this shake latch.
+		const count = props.shakeCount;
+		if (count && !props.enabled) {
+			setIsShaking(true);
+		}
+	}, [props.shakeCount]);
 
-	createEffect(
-		on(
-			() => [props.isActive, props.isContextMenuOpen] as const,
-			([isActive, isContextMenuOpen]) => {
-				if (!isActive && !isContextMenuOpen && unfreezeUpdatesCallback) {
-					releaseInteractionFreeze();
-				}
-			},
-		),
-	);
+	useEffect(() => {
+		if (!props.isActive && !props.isContextMenuOpen && unfreezeUpdatesCallback.current) {
+			releaseInteractionFreeze();
+		}
+	}, [props.isActive, props.isContextMenuOpen]);
 
-	createEffect(
-		on(
-			() => isCurrentActionActive(),
-			(didCurrentActionBecomeActive) => {
-				if (!didCurrentActionBecomeActive) {
-					// The accumulator can drift past ±180° while the user circles the
-					// toolbar; resetting to literal 0 would unspin those revolutions
-					// through the CSS transition. Snapping to the nearest equivalent
-					// of 0° keeps the ease-back to a shortest-path arc.
-					setSelectIconRotationDeg((previousRotationDeg) =>
-						accumulateRotationDeg(previousRotationDeg, 0),
-					);
-					return;
-				}
+	useEffect(() => {
+		const didCurrentActionBecomeActive = isCurrentActionActive();
+		if (!didCurrentActionBecomeActive) {
+			// The accumulator can drift past ±180° while the user circles the
+			// toolbar; resetting to literal 0 would unspin those revolutions
+			// through the CSS transition. Snapping to the nearest equivalent
+			// of 0° keeps the ease-back to a shortest-path arc.
+			setSelectIconRotationDeg((previousRotationDeg) =>
+				accumulateRotationDeg(previousRotationDeg, 0),
+			);
+			return;
+		}
 
-				let pointerFrameId: number | null = null;
-				let latestPointerX = 0;
-				let latestPointerY = 0;
-				const updateSelectIconRotation = () => {
-					pointerFrameId = null;
-					if (!selectButtonRef) return;
-					const rect = selectButtonRef.getBoundingClientRect();
-					const centerX = rect.left + rect.width / 2;
-					const centerY = rect.top + rect.height / 2;
-					const deltaX = latestPointerX - centerX;
-					const deltaY = latestPointerY - centerY;
-					if (Math.hypot(deltaX, deltaY) < SELECT_ICON_POINT_MIN_DISTANCE_PX) return;
-					const targetAngleDeg = (Math.atan2(deltaY, deltaX) * 180) / Math.PI;
-					const desiredRotationDeg = targetAngleDeg - SELECT_ICON_NATURAL_POINT_ANGLE_DEG;
-					setSelectIconRotationDeg((previousRotationDeg) =>
-						accumulateRotationDeg(previousRotationDeg, desiredRotationDeg),
-					);
-				};
+		let pointerFrameId: number | null = null;
+		let latestPointerX = 0;
+		let latestPointerY = 0;
+		const updateSelectIconRotation = () => {
+			pointerFrameId = null;
+			if (!selectButtonRef.current) return;
+			const rect = selectButtonRef.current.getBoundingClientRect();
+			const centerX = rect.left + rect.width / 2;
+			const centerY = rect.top + rect.height / 2;
+			const deltaX = latestPointerX - centerX;
+			const deltaY = latestPointerY - centerY;
+			if (Math.hypot(deltaX, deltaY) < SELECT_ICON_POINT_MIN_DISTANCE_PX) return;
+			const targetAngleDeg = (Math.atan2(deltaY, deltaX) * 180) / Math.PI;
+			const desiredRotationDeg = targetAngleDeg - SELECT_ICON_NATURAL_POINT_ANGLE_DEG;
+			setSelectIconRotationDeg((previousRotationDeg) =>
+				accumulateRotationDeg(previousRotationDeg, desiredRotationDeg),
+			);
+		};
 
-				const handlePointerMove = ignoreRealInput((event: PointerEvent | MouseEvent) => {
-					latestPointerX = event.clientX;
-					latestPointerY = event.clientY;
-					if (pointerFrameId !== null) return;
-					pointerFrameId = nativeRequestAnimationFrame(updateSelectIconRotation);
-				});
+		const handlePointerMove = ignoreRealInput((event: PointerEvent | MouseEvent) => {
+			latestPointerX = event.clientX;
+			latestPointerY = event.clientY;
+			if (pointerFrameId !== null) return;
+			pointerFrameId = nativeRequestAnimationFrame(updateSelectIconRotation);
+		});
 
-				window.addEventListener('pointermove', handlePointerMove, { passive: true });
-				onCleanup(() => {
-					window.removeEventListener('pointermove', handlePointerMove);
-					if (pointerFrameId !== null) nativeCancelAnimationFrame(pointerFrameId);
-				});
-			},
-		),
-	);
-
-	let expandedDimensions = {
-		width: TOOLBAR_DEFAULT_WIDTH_PX,
-		height: TOOLBAR_DEFAULT_HEIGHT_PX,
-	};
-	const [collapsedDimensions, setCollapsedDimensions] = createSignal(
-		getCollapsedDimsForEdge(snapEdge()),
-	);
+		window.addEventListener('pointermove', handlePointerMove, { passive: true });
+		return () => {
+			window.removeEventListener('pointermove', handlePointerMove);
+			if (pointerFrameId !== null) nativeCancelAnimationFrame(pointerFrameId);
+		};
+	}, [isCurrentActionActive()]);
 
 	const syncCollapsedDimensionsToEdge = (oldEdge: SnapEdge, newEdge: SnapEdge): void => {
 		if (isHorizontalEdge(oldEdge) === isHorizontalEdge(newEdge)) return;
@@ -255,12 +268,12 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 		collapsedPosition: Position,
 		edge: SnapEdge,
 	): { position: Position; ratio: number } => {
-		const actualRect = containerRef?.getBoundingClientRect();
+		const actualRect = containerRef.current?.getBoundingClientRect();
 		const fallback = getCollapsedDimsForEdge(edge);
 		return calculateExpandedPositionFromCollapsed(
 			collapsedPosition,
 			edge,
-			expandedDimensions,
+			expandedDimensions.current,
 			actualRect?.width ?? fallback.width,
 			actualRect?.height ?? fallback.height,
 		);
@@ -270,8 +283,8 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 		const newPosition = getPositionFromEdgeAndRatio(
 			snapEdge(),
 			positionRatio(),
-			expandedDimensions.width,
-			expandedDimensions.height,
+			expandedDimensions.current.width,
+			expandedDimensions.current.height,
 		);
 		setPosition(newPosition);
 	};
@@ -292,10 +305,10 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 			return;
 		}
 
-		const rect = containerRef?.getBoundingClientRect();
+		const rect = containerRef.current?.getBoundingClientRect();
 		const currentRatio = positionRatio();
 		if (rect) {
-			expandedDimensions = { width: rect.width, height: rect.height };
+			expandedDimensions.current = { width: rect.width, height: rect.height };
 		}
 
 		setIsCollapseAnimating(true);
@@ -312,12 +325,7 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 	});
 
 	const computeCollapsedPosition = (): Position =>
-		getCollapsedPosition(snapEdge(), position(), expandedDimensions, collapsedDimensions());
-
-	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
-	let collapseAnimationTimeout: ReturnType<typeof setTimeout> | undefined;
-
-	let lastObservedExpandedSize: { width: number; height: number } | null = null;
+		getCollapsedPosition(snapEdge(), position(), expandedDimensions.current, collapsedDimensions());
 
 	// Both directions need to refresh their cached dimensions: collapsing
 	// updates collapsedDimensions for the next expand-from-collapsed offset
@@ -326,21 +334,21 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 	// got cached when the toolbar mounted with savedState.collapsed=true and
 	// an unmeasurable rect.
 	const captureDimensionsAfterAnimation = () => {
-		const finalRect = containerRef?.getBoundingClientRect();
+		const finalRect = containerRef.current?.getBoundingClientRect();
 		if (!finalRect || finalRect.width === 0 || finalRect.height === 0) return;
 		if (isCollapsed()) {
 			setCollapsedDimensions({ width: finalRect.width, height: finalRect.height });
 		} else {
-			expandedDimensions = { width: finalRect.width, height: finalRect.height };
-			lastObservedExpandedSize = { width: finalRect.width, height: finalRect.height };
+			expandedDimensions.current = { width: finalRect.width, height: finalRect.height };
+			lastObservedExpandedSize.current = { width: finalRect.width, height: finalRect.height };
 		}
 	};
 
 	const scheduleCollapseAnimationEnd = (): void => {
-		if (collapseAnimationTimeout) {
-			clearTimeout(collapseAnimationTimeout);
+		if (collapseAnimationTimeout.current) {
+			clearTimeout(collapseAnimationTimeout.current);
 		}
-		collapseAnimationTimeout = setTimeout(() => {
+		collapseAnimationTimeout.current = setTimeout(() => {
 			setIsCollapseAnimating(false);
 			captureDimensionsAfterAnimation();
 		}, TOOLBAR_COLLAPSE_ANIMATION_DURATION_MS);
@@ -364,7 +372,7 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 		scheduleCollapseAnimationEnd();
 	};
 
-	// The first onMount measurement can fire before the shadow DOM host is
+	// The first mount measurement can fire before the shadow DOM host is
 	// attached to <body> (mountRoot defers attachment to DOMContentLoaded while
 	// the renderer's dynamic import can resolve earlier), or before fonts/CSS
 	// have settled - both leave getBoundingClientRect returning a 0 rect. The
@@ -384,14 +392,14 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 		}
 
 		if (
-			lastObservedExpandedSize &&
-			lastObservedExpandedSize.width === newWidth &&
-			lastObservedExpandedSize.height === newHeight
+			lastObservedExpandedSize.current &&
+			lastObservedExpandedSize.current.width === newWidth &&
+			lastObservedExpandedSize.current.height === newHeight
 		) {
 			return;
 		}
-		lastObservedExpandedSize = { width: newWidth, height: newHeight };
-		expandedDimensions = { width: newWidth, height: newHeight };
+		lastObservedExpandedSize.current = { width: newWidth, height: newHeight };
+		expandedDimensions.current = { width: newWidth, height: newHeight };
 		setPosition(getPositionFromEdgeAndRatio(snapEdge(), positionRatio(), newWidth, newHeight));
 	};
 
@@ -401,12 +409,11 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 	// rAF-coalesced: scroll events fire per frame (and from every nested
 	// scroller, since the listener captures), but one reposition per frame is
 	// all the anchor needs.
-	let scopedScrollFrameId: number | null = null;
 	const handleScopedScroll = () => {
 		if (drag.isDragging() || drag.isSnapping()) return;
-		if (scopedScrollFrameId !== null) return;
-		scopedScrollFrameId = nativeRequestAnimationFrame(() => {
-			scopedScrollFrameId = null;
+		if (scopedScrollFrameId.current !== null) return;
+		scopedScrollFrameId.current = nativeRequestAnimationFrame(() => {
+			scopedScrollFrameId.current = null;
 			recalculatePosition();
 		});
 	};
@@ -417,19 +424,19 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 		setIsResizing(true);
 		recalculatePosition();
 
-		if (resizeTimeout) {
-			clearTimeout(resizeTimeout);
+		if (resizeTimeout.current) {
+			clearTimeout(resizeTimeout.current);
 		}
 
-		resizeTimeout = setTimeout(() => {
+		resizeTimeout.current = setTimeout(() => {
 			setIsResizing(false);
 
 			const newRatio = getRatioFromPosition(
 				snapEdge(),
 				position().x,
 				position().y,
-				expandedDimensions.width,
-				expandedDimensions.height,
+				expandedDimensions.current.width,
+				expandedDimensions.current.height,
 			);
 			setPositionRatio(newRatio);
 			saveAndNotify({
@@ -447,15 +454,22 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 			defaultAction: currentActionId(),
 		};
 		saveToolbarState(stateWithDefaultAction);
-		props.onStateChange?.(stateWithDefaultAction);
+		propsRef.current.onStateChange?.(stateWithDefaultAction);
 	};
 
-	onMount(() => {
-		if (containerRef) {
-			props.onContainerRef?.(containerRef);
+	const currentPosition = () => {
+		const collapsed = isCollapsed();
+		return collapsed ? computeCollapsedPosition() : position();
+	};
+
+	useEffect(() => {
+		const cleanups: Array<() => void> = [];
+
+		if (containerRef.current) {
+			props.onContainerRef?.(containerRef.current);
 		}
 
-		const rect = containerRef?.getBoundingClientRect();
+		const rect = containerRef.current?.getBoundingClientRect();
 		const viewport = getVisualViewport();
 		// The host's shadow DOM may still be detached from <body> when this
 		// synchronous measurement runs (mountRoot defers attachment to
@@ -471,18 +485,18 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 		// would make the toolbar too wide after restoring a collapsed state.
 		if (savedState) {
 			if (hasMeasurableRect && rect) {
-				expandedDimensions = { width: rect.width, height: rect.height };
+				expandedDimensions.current = { width: rect.width, height: rect.height };
 			}
 			setIsCollapsed(savedState.collapsed);
 			const newPosition = getPositionFromEdgeAndRatio(
 				savedState.edge,
 				savedState.ratio,
-				expandedDimensions.width,
-				expandedDimensions.height,
+				expandedDimensions.current.width,
+				expandedDimensions.current.height,
 			);
 			setPosition(newPosition);
 		} else if (hasMeasurableRect && rect) {
-			expandedDimensions = { width: rect.width, height: rect.height };
+			expandedDimensions.current = { width: rect.width, height: rect.height };
 			setPosition({
 				x: viewport.offsetLeft + (viewport.width - rect.width) / 2,
 				y: viewport.offsetTop + viewport.height - rect.height - TOOLBAR_SNAP_MARGIN_PX,
@@ -492,8 +506,8 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 			const defaultPosition = getPositionFromEdgeAndRatio(
 				'bottom',
 				TOOLBAR_DEFAULT_POSITION_RATIO,
-				expandedDimensions.width,
-				expandedDimensions.height,
+				expandedDimensions.current.width,
+				expandedDimensions.current.height,
 			);
 			setPosition(defaultPosition);
 			setPositionRatio(TOOLBAR_DEFAULT_POSITION_RATIO);
@@ -503,8 +517,8 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 			const unsubscribe = props.onSubscribeToStateChanges((state: ToolbarState) => {
 				if (isCollapseAnimating()) return;
 
-				const rect = containerRef?.getBoundingClientRect();
-				if (!rect) return;
+				const currentRect = containerRef.current?.getBoundingClientRect();
+				if (!currentRect) return;
 
 				const didCollapsedChange = isCollapsed() !== state.collapsed;
 
@@ -531,15 +545,15 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 					const newPosition = getPositionFromEdgeAndRatio(
 						state.edge,
 						state.ratio,
-						expandedDimensions.width,
-						expandedDimensions.height,
+						expandedDimensions.current.width,
+						expandedDimensions.current.height,
 					);
 					setPosition(newPosition);
 					setPositionRatio(state.ratio);
 				}
 			});
 
-			onCleanup(unsubscribe);
+			cleanups.push(unsubscribe);
 		}
 
 		window.addEventListener('resize', handleResize);
@@ -559,11 +573,11 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 			if (typeof ResizeObserver !== 'undefined') {
 				const scopeResizeObserver = new ResizeObserver(handleScopedScroll);
 				scopeResizeObserver.observe(scopeContainer);
-				onCleanup(() => scopeResizeObserver.disconnect());
+				cleanups.push(() => scopeResizeObserver.disconnect());
 			}
 		}
 
-		if (typeof ResizeObserver !== 'undefined' && containerRef) {
+		if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
 			const observer = new ResizeObserver((entries) => {
 				const entry = entries[0];
 				if (!entry) return;
@@ -579,50 +593,43 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 					width = borderBox.inlineSize;
 					height = borderBox.blockSize;
 				} else {
-					const rect = containerRef?.getBoundingClientRect();
-					if (!rect) return;
-					width = rect.width;
-					height = rect.height;
+					const observedRect = containerRef.current?.getBoundingClientRect();
+					if (!observedRect) return;
+					width = observedRect.width;
+					height = observedRect.height;
 				}
 				handleObservedSizeChange(width, height);
 			});
-			observer.observe(containerRef);
-			onCleanup(() => observer.disconnect());
+			observer.observe(containerRef.current);
+			cleanups.push(() => observer.disconnect());
 		}
 
 		const fadeInTimeout = setTimeout(() => {
 			setIsVisible(true);
 		}, TOOLBAR_FADE_IN_DELAY_MS);
+		cleanups.push(() => clearTimeout(fadeInTimeout));
 
-		onCleanup(() => {
-			clearTimeout(fadeInTimeout);
-		});
-	});
-
-	onCleanup(() => {
-		window.removeEventListener('resize', handleResize);
-		window.visualViewport?.removeEventListener('resize', handleResize);
-		window.visualViewport?.removeEventListener('scroll', handleResize);
-		// Unconditional: removing a never-added listener is a no-op, and the scope
-		// singleton may already be cleared by init's own cleanup at this point.
-		window.removeEventListener('scroll', handleScopedScroll, { capture: true });
-		if (scopedScrollFrameId !== null) nativeCancelAnimationFrame(scopedScrollFrameId);
-		clearTimeout(resizeTimeout);
-		clearTimeout(collapseAnimationTimeout);
-
-		if (unfreezeUpdatesCallback) releaseInteractionFreeze();
-	});
-
-	const currentPosition = () => {
-		const collapsed = isCollapsed();
-		return collapsed ? computeCollapsedPosition() : position();
-	};
+		return () => {
+			for (const cleanup of cleanups) cleanup();
+			window.removeEventListener('resize', handleResize);
+			window.visualViewport?.removeEventListener('resize', handleResize);
+			window.visualViewport?.removeEventListener('scroll', handleResize);
+			// Unconditional: removing a never-added listener is a no-op, and the
+			// scope singleton may already be cleared by init's own cleanup here.
+			window.removeEventListener('scroll', handleScopedScroll, { capture: true });
+			if (scopedScrollFrameId.current !== null)
+				nativeCancelAnimationFrame(scopedScrollFrameId.current);
+			clearTimeout(resizeTimeout.current);
+			clearTimeout(collapseAnimationTimeout.current);
+			if (unfreezeUpdatesCallback.current) releaseInteractionFreeze();
+		};
+	}, []);
 
 	const getCursorClass = (): string => {
 		if (isCollapsed()) {
 			return 'cursor-pointer';
 		}
-		if (drag.isDragging()) {
+		if (isDragging) {
 			return 'cursor-grabbing';
 		}
 		return 'cursor-grab';
@@ -631,8 +638,8 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 	const isInteracting = (): boolean =>
 		isToolbarHovered() ||
 		Boolean(props.isContextMenuOpen) ||
-		drag.isDragging() ||
-		drag.isSnapping() ||
+		isDragging ||
+		isSnapping ||
 		isCollapseAnimating() ||
 		isChevronPressed();
 
@@ -641,10 +648,10 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 	const getTransitionClass = (): string => {
 		// Drag must follow the pointer frame-to-frame; any transform transition
 		// here would lag the toolbar behind the cursor.
-		if (isResizing() || drag.isDragging()) {
+		if (isResizing() || isDragging) {
 			return '';
 		}
-		if (drag.isSnapping()) {
+		if (isSnapping) {
 			return 'transition-[transform,opacity] duration-300 ease-out';
 		}
 		if (isCollapseAnimating()) {
@@ -684,21 +691,21 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 				isVisible() ? 'pointer-events-auto' : 'pointer-events-none',
 			)}
 			style={{
-				'z-index': String(Z_INDEX_OVERLAY),
+				zIndex: Z_INDEX_OVERLAY,
 				transform: `translate(${currentPosition().x}px, ${currentPosition().y}px) scale(${shouldDim() ? 0.97 : 1})`,
-				'transform-origin': getTransformOrigin(),
+				transformOrigin: getTransformOrigin(),
 				opacity: !isVisible() ? 0 : shouldDim() ? 0.55 : 1,
 			}}
-			on:pointerdown={(event) => {
+			onPointerDown={(event) => {
 				stopEventPropagation(event);
 				drag.handlePointerDown(event);
 			}}
-			on:mousedown={stopEventPropagation}
-			on:pointerenter={() => {
+			onMouseDown={stopEventPropagation}
+			onPointerEnter={() => {
 				setIsToolbarHovered(true);
 				if (!isCollapsed()) props.onSelectHoverChange?.(true);
 			}}
-			on:pointerleave={() => {
+			onPointerLeave={() => {
 				// Prefer pointerleave over mouseleave: under html pointer-events
 				// freeze, leaving a pe:auto toolbar island can skip mouseleave.
 				setIsToolbarHovered(false);
@@ -726,7 +733,9 @@ export const Toolbar: Component<ToolbarProps> = (props) => {
 					<ToolbarActionButton
 						actionId={currentActionId()}
 						isToggle
-						ref={(element) => (selectButtonRef = element)}
+						ref={(element) => {
+							selectButtonRef.current = element;
+						}}
 						label={
 							isCurrentActionActive() ? 'Stop selecting element' : `${currentActionLabel()} element`
 						}

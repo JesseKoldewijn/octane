@@ -1,21 +1,22 @@
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
 
-interface IconRetryProps {
+interface IconRetryProps extends Record<string, unknown> {
 	size?: number;
 	class?: string;
 }
 
-export const IconRetry: Component<IconRetryProps> = (props) => {
-	const size = () => props.size ?? 12;
+export const IconRetry = (props: IconRetryProps) => {
+	const { size = 12, class: className, ...rest } = props;
 
 	return (
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
-			width={size()}
-			height={size()}
+			width={size}
+			height={size}
 			viewBox="0 0 24 24"
 			fill="currentColor"
-			class={props.class}
+			class={className}
+			{...rest}
 		>
 			<path
 				fill-rule="evenodd"

@@ -1,4 +1,5 @@
-import { createEffect, on, onCleanup, onMount, type Component } from 'solid-js';
+/** @jsxImportSource octane */
+import { useEffect, useRef } from 'octane';
 import type { OverlayBounds, SelectionLabelInstance } from '../types.js';
 import { lerp } from '../utils/lerp.js';
 import {
@@ -67,43 +68,49 @@ interface OverlayCanvasProps {
 	labelInstances?: SelectionLabelInstance[];
 }
 
-export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
-	let canvasRef: HTMLCanvasElement | undefined;
-	let mainContext: CanvasRenderingContext2D | null = null;
-	let canvasWidth = 0;
-	let canvasHeight = 0;
-	let devicePixelRatio = 1;
-	let animationFrameId: number | null = null;
-	let fadeWakeTimeoutId: number | null = null;
-	let previousFrameTimestamp: number | null = null;
+export const OverlayCanvas = (props: OverlayCanvasProps) => {
+	// Octane re-runs the body every render, so the long-lived rAF loop and the
+	// window listeners read the latest props through this ref.
+	const propsRef = useRef(props);
+	propsRef.current = props;
 
-	let selectionAnimations: AnimatedBounds[] = [];
-	let dragAnimation: AnimatedBounds | null = null;
-	let grabbedAnimations: AnimatedBounds[] = [];
+	const canvasRef = useRef<HTMLCanvasElement | null>(null);
+	const mainContext = useRef<CanvasRenderingContext2D | null>(null);
+	const canvasWidth = useRef(0);
+	const canvasHeight = useRef(0);
+	const devicePixelRatio = useRef(1);
+	const animationFrameId = useRef<number | null>(null);
+	const fadeWakeTimeoutId = useRef<number | null>(null);
+	const previousFrameTimestamp = useRef<number | null>(null);
+
+	const selectionAnimations = useRef<AnimatedBounds[]>([]);
+	const dragAnimation = useRef<AnimatedBounds | null>(null);
+	const grabbedAnimations = useRef<AnimatedBounds[]>([]);
 
 	const canvasColorSpace: PredefinedColorSpace = supportsDisplayP3() ? 'display-p3' : 'srgb';
 
 	const initializeCanvas = () => {
-		if (!canvasRef) return;
+		const canvas = canvasRef.current;
+		if (!canvas) return;
 
-		devicePixelRatio = Math.max(window.devicePixelRatio || 1, MIN_DEVICE_PIXEL_RATIO);
+		devicePixelRatio.current = Math.max(window.devicePixelRatio || 1, MIN_DEVICE_PIXEL_RATIO);
 		// Size to the layout viewport (documentElement.clientWidth/Height), not
 		// window.innerWidth/Height. Under browser zoom the latter shrink to the
 		// visual viewport while getBoundingClientRect — which positions the boxes —
 		// keeps returning full layout coordinates, so a canvas sized to innerWidth
 		// draws the selection box off-canvas for anything past the shrunken edge
 		// (the "selection box gone entirely when zoomed" bug).
-		canvasWidth = document.documentElement.clientWidth || window.innerWidth;
-		canvasHeight = document.documentElement.clientHeight || window.innerHeight;
+		canvasWidth.current = document.documentElement.clientWidth || window.innerWidth;
+		canvasHeight.current = document.documentElement.clientHeight || window.innerHeight;
 
-		canvasRef.width = canvasWidth * devicePixelRatio;
-		canvasRef.height = canvasHeight * devicePixelRatio;
-		canvasRef.style.width = `${canvasWidth}px`;
-		canvasRef.style.height = `${canvasHeight}px`;
+		canvas.width = canvasWidth.current * devicePixelRatio.current;
+		canvas.height = canvasHeight.current * devicePixelRatio.current;
+		canvas.style.width = `${canvasWidth.current}px`;
+		canvas.style.height = `${canvasHeight.current}px`;
 
-		mainContext = canvasRef.getContext('2d', { colorSpace: canvasColorSpace });
-		if (mainContext) {
-			mainContext.scale(devicePixelRatio, devicePixelRatio);
+		mainContext.current = canvas.getContext('2d', { colorSpace: canvasColorSpace });
+		if (mainContext.current) {
+			mainContext.current.scale(devicePixelRatio.current, devicePixelRatio.current);
 		}
 	};
 
@@ -194,29 +201,32 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 	};
 
 	const renderDragLayer = () => {
-		if (!mainContext || !props.dragVisible || !dragAnimation) return;
+		const context = mainContext.current;
+		const animation = dragAnimation.current;
+		if (!context || !propsRef.current.dragVisible || !animation) return;
 
 		const style = LAYER_STYLES.drag;
 		drawRoundedRectangle(
-			mainContext,
-			dragAnimation.current.x,
-			dragAnimation.current.y,
-			dragAnimation.current.width,
-			dragAnimation.current.height,
-			dragAnimation.borderRadius,
+			context,
+			animation.current.x,
+			animation.current.y,
+			animation.current.width,
+			animation.current.height,
+			animation.borderRadius,
 			style.fillColor,
 			style.borderColor,
 		);
 	};
 
 	const renderSelectionLayer = () => {
-		if (!mainContext || !props.selectionVisible) return;
+		const context = mainContext.current;
+		if (!context || !propsRef.current.selectionVisible) return;
 
 		const style = LAYER_STYLES.selection;
 
-		for (const animation of selectionAnimations) {
+		for (const animation of selectionAnimations.current) {
 			drawRoundedRectangle(
-				mainContext,
+				context,
 				animation.current.x,
 				animation.current.y,
 				animation.current.width,
@@ -230,13 +240,14 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 	};
 
 	const renderBoundsLayer = (animations: AnimatedBounds[]) => {
-		if (!mainContext) return;
+		const context = mainContext.current;
+		if (!context) return;
 
 		const style = LAYER_STYLES.grabbed;
 
 		for (const animation of animations) {
 			drawRoundedRectangle(
-				mainContext,
+				context,
 				animation.current.x,
 				animation.current.y,
 				animation.current.width,
@@ -250,16 +261,18 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 	};
 
 	const compositeAllLayers = () => {
-		if (!mainContext || !canvasRef) return;
-		if (canvasWidth <= 0 || canvasHeight <= 0) return;
+		const context = mainContext.current;
+		const canvas = canvasRef.current;
+		if (!context || !canvas) return;
+		if (canvasWidth.current <= 0 || canvasHeight.current <= 0) return;
 
-		mainContext.setTransform(1, 0, 0, 1, 0, 0);
-		mainContext.clearRect(0, 0, canvasRef.width, canvasRef.height);
-		mainContext.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+		context.setTransform(1, 0, 0, 1, 0, 0);
+		context.clearRect(0, 0, canvas.width, canvas.height);
+		context.setTransform(devicePixelRatio.current, 0, 0, devicePixelRatio.current, 0, 0);
 
 		renderDragLayer();
 		renderSelectionLayer();
-		renderBoundsLayer(grabbedAnimations);
+		renderBoundsLayer(grabbedAnimations.current);
 	};
 
 	const interpolateBounds = (
@@ -297,10 +310,10 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 	const runAnimationFrame = () => {
 		const currentFrameTimestamp = performance.now();
 		const frameDurationMs =
-			previousFrameTimestamp !== null
-				? currentFrameTimestamp - previousFrameTimestamp
+			previousFrameTimestamp.current !== null
+				? currentFrameTimestamp - previousFrameTimestamp.current
 				: BASELINE_FRAME_DURATION_MS;
-		previousFrameTimestamp = currentFrameTimestamp;
+		previousFrameTimestamp.current = currentFrameTimestamp;
 
 		const dragLerpForFrame = adjustLerpForFrameDuration(
 			LAYER_STYLES.drag.lerpFactor,
@@ -318,13 +331,13 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 		let shouldContinueAnimating = false;
 		let nextFadeDelayMs: number | null = null;
 
-		if (dragAnimation?.isInitialized) {
-			if (interpolateBounds(dragAnimation, dragLerpForFrame)) {
+		if (dragAnimation.current?.isInitialized) {
+			if (interpolateBounds(dragAnimation.current, dragLerpForFrame)) {
 				shouldContinueAnimating = true;
 			}
 		}
 
-		for (const animation of selectionAnimations) {
+		for (const animation of selectionAnimations.current) {
 			if (animation.isInitialized) {
 				if (interpolateBounds(animation, selectionLerpForFrame)) {
 					shouldContinueAnimating = true;
@@ -333,7 +346,7 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 		}
 
 		const currentTimestamp = Date.now();
-		grabbedAnimations = grabbedAnimations.filter((animation) => {
+		grabbedAnimations.current = grabbedAnimations.current.filter((animation) => {
 			const isLabelAnimation = animation.id.startsWith('label-');
 
 			if (animation.isInitialized) {
@@ -390,14 +403,14 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 		compositeAllLayers();
 
 		if (shouldContinueAnimating) {
-			animationFrameId = nativeRequestAnimationFrame(runAnimationFrame);
+			animationFrameId.current = nativeRequestAnimationFrame(runAnimationFrame);
 		} else {
-			animationFrameId = null;
-			previousFrameTimestamp = null;
+			animationFrameId.current = null;
+			previousFrameTimestamp.current = null;
 			if (nextFadeDelayMs !== null) {
-				fadeWakeTimeoutId = window.setTimeout(
+				fadeWakeTimeoutId.current = window.setTimeout(
 					() => {
-						fadeWakeTimeoutId = null;
+						fadeWakeTimeoutId.current = null;
 						scheduleAnimationFrame();
 					},
 					Math.max(0, nextFadeDelayMs),
@@ -407,12 +420,12 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 	};
 
 	const scheduleAnimationFrame = () => {
-		if (fadeWakeTimeoutId !== null) {
-			window.clearTimeout(fadeWakeTimeoutId);
-			fadeWakeTimeoutId = null;
+		if (fadeWakeTimeoutId.current !== null) {
+			window.clearTimeout(fadeWakeTimeoutId.current);
+			fadeWakeTimeoutId.current = null;
 		}
-		if (animationFrameId !== null) return;
-		animationFrameId = nativeRequestAnimationFrame(runAnimationFrame);
+		if (animationFrameId.current !== null) return;
+		animationFrameId.current = nativeRequestAnimationFrame(runAnimationFrame);
 	};
 
 	const handleWindowResize = () => {
@@ -420,159 +433,151 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 		scheduleAnimationFrame();
 	};
 
-	createEffect(
-		on(
-			() =>
-				[
-					props.selectionVisible,
-					props.selectionBounds,
-					props.selectionBoundsMultiple,
-					props.selectionShouldSnap,
-				] as const,
-			([isVisible, singleBounds, multipleBounds, shouldSnap]) => {
-				if (!isVisible || (!singleBounds && (!multipleBounds || multipleBounds.length === 0))) {
-					selectionAnimations = [];
-					scheduleAnimationFrame();
-					return;
+	useEffect(() => {
+		const isVisible = props.selectionVisible;
+		const singleBounds = props.selectionBounds;
+		const multipleBounds = props.selectionBoundsMultiple;
+		const shouldSnap = props.selectionShouldSnap;
+
+		if (!isVisible || (!singleBounds && (!multipleBounds || multipleBounds.length === 0))) {
+			selectionAnimations.current = [];
+			scheduleAnimationFrame();
+			return;
+		}
+
+		let boundsToRender: readonly OverlayBounds[];
+		if (multipleBounds && multipleBounds.length > 0) {
+			boundsToRender = multipleBounds;
+		} else if (singleBounds) {
+			boundsToRender = [singleBounds];
+		} else {
+			boundsToRender = [];
+		}
+
+		const existingSelectionById = new Map<string, AnimatedBounds>();
+		for (const animation of selectionAnimations.current) {
+			existingSelectionById.set(animation.id, animation);
+		}
+
+		selectionAnimations.current = boundsToRender.map((bounds, index) => {
+			const animationId = `selection-${index}`;
+			const existingAnimation = existingSelectionById.get(animationId);
+
+			if (existingAnimation) {
+				updateAnimationTarget(existingAnimation, bounds);
+				if (shouldSnap) {
+					existingAnimation.current.x = existingAnimation.target.x;
+					existingAnimation.current.y = existingAnimation.target.y;
+					existingAnimation.current.width = existingAnimation.target.width;
+					existingAnimation.current.height = existingAnimation.target.height;
 				}
+				return existingAnimation;
+			}
 
-				let boundsToRender: readonly OverlayBounds[];
-				if (multipleBounds && multipleBounds.length > 0) {
-					boundsToRender = multipleBounds;
-				} else if (singleBounds) {
-					boundsToRender = [singleBounds];
-				} else {
-					boundsToRender = [];
-				}
+			return createAnimatedBounds(animationId, bounds);
+		});
 
-				const existingSelectionById = new Map<string, AnimatedBounds>();
-				for (const animation of selectionAnimations) {
-					existingSelectionById.set(animation.id, animation);
-				}
+		scheduleAnimationFrame();
+	}, [
+		props.selectionVisible,
+		props.selectionBounds,
+		props.selectionBoundsMultiple,
+		props.selectionShouldSnap,
+	]);
 
-				selectionAnimations = boundsToRender.map((bounds, index) => {
-					const animationId = `selection-${index}`;
-					const existingAnimation = existingSelectionById.get(animationId);
+	useEffect(() => {
+		const isVisible = props.dragVisible;
+		const bounds = props.dragBounds;
 
-					if (existingAnimation) {
-						updateAnimationTarget(existingAnimation, bounds);
-						if (shouldSnap) {
-							existingAnimation.current.x = existingAnimation.target.x;
-							existingAnimation.current.y = existingAnimation.target.y;
-							existingAnimation.current.width = existingAnimation.target.width;
-							existingAnimation.current.height = existingAnimation.target.height;
-						}
-						return existingAnimation;
-					}
+		if (!isVisible || !bounds) {
+			dragAnimation.current = null;
+			scheduleAnimationFrame();
+			return;
+		}
 
-					return createAnimatedBounds(animationId, bounds);
+		if (dragAnimation.current) {
+			updateAnimationTarget(dragAnimation.current, bounds);
+		} else {
+			dragAnimation.current = createAnimatedBounds('drag', bounds);
+		}
+
+		scheduleAnimationFrame();
+	}, [props.dragVisible, props.dragBounds]);
+
+	useEffect(() => {
+		const boxesToProcess = props.grabbedBoxes ?? [];
+		const instancesToProcess = props.labelInstances ?? [];
+
+		const boxesById = new Map<string, (typeof boxesToProcess)[number]>();
+		for (const box of boxesToProcess) {
+			boxesById.set(box.id, box);
+		}
+
+		// Build one id→animation index up-front so the per-instance lookups
+		// below are O(1). The previous .find() inside a for-loop produced
+		// O(boxes × animations) and O(labels × animations) hot work, both
+		// of which grow with multi-select.
+		const animationsById = new Map<string, AnimatedBounds>();
+		for (const animation of grabbedAnimations.current) {
+			animationsById.set(animation.id, animation);
+		}
+
+		for (const box of boxesToProcess) {
+			if (!animationsById.has(box.id)) {
+				const newAnimation = createAnimatedBounds(box.id, box.bounds, {
+					createdAt: box.createdAt,
 				});
+				grabbedAnimations.current.push(newAnimation);
+				animationsById.set(box.id, newAnimation);
+			}
+		}
 
-				scheduleAnimationFrame();
-			},
-		),
-	);
+		for (const animation of grabbedAnimations.current) {
+			const matchingBox = boxesById.get(animation.id);
+			if (matchingBox) {
+				updateAnimationTarget(animation, matchingBox.bounds);
+			}
+		}
 
-	createEffect(
-		on(
-			() => [props.dragVisible, props.dragBounds] as const,
-			([isVisible, bounds]) => {
-				if (!isVisible || !bounds) {
-					dragAnimation = null;
-					scheduleAnimationFrame();
-					return;
-				}
+		const activeLabelIds = new Set<string>();
+		for (const instance of instancesToProcess) {
+			const boundsToRender = resolveBoundsArray(instance);
+			const targetOpacity = instance.status === 'fading' ? 0 : 1;
 
-				if (dragAnimation) {
-					updateAnimationTarget(dragAnimation, bounds);
+			for (let index = 0; index < boundsToRender.length; index++) {
+				const bounds = boundsToRender[index];
+				const animationId = `label-${instance.id}-${index}`;
+				activeLabelIds.add(animationId);
+
+				const existingAnimation = animationsById.get(animationId);
+				if (existingAnimation) {
+					updateAnimationTarget(existingAnimation, bounds, targetOpacity);
 				} else {
-					dragAnimation = createAnimatedBounds('drag', bounds);
+					const newAnimation = createAnimatedBounds(animationId, bounds, {
+						opacity: 1,
+						targetOpacity,
+					});
+					grabbedAnimations.current.push(newAnimation);
+					animationsById.set(animationId, newAnimation);
 				}
+			}
+		}
 
-				scheduleAnimationFrame();
-			},
-		),
-	);
+		// Boxes stay in the store for their full fade-out, so an animation
+		// whose box is gone was cleared explicitly (reset/escape) and must
+		// not linger — an orphaned remnant can't track layout shifts and
+		// would freeze at stale coordinates.
+		grabbedAnimations.current = grabbedAnimations.current.filter((animation) => {
+			if (animation.id.startsWith('label-')) {
+				return activeLabelIds.has(animation.id);
+			}
+			return boxesById.has(animation.id);
+		});
 
-	createEffect(
-		on(
-			() => [props.grabbedBoxes, props.labelInstances] as const,
-			([grabbedBoxes, labelInstances]) => {
-				const boxesToProcess = grabbedBoxes ?? [];
-				const instancesToProcess = labelInstances ?? [];
+		scheduleAnimationFrame();
+	}, [props.grabbedBoxes, props.labelInstances]);
 
-				const boxesById = new Map<string, (typeof boxesToProcess)[number]>();
-				for (const box of boxesToProcess) {
-					boxesById.set(box.id, box);
-				}
-
-				// Build one id→animation index up-front so the per-instance lookups
-				// below are O(1). The previous .find() inside a for-loop produced
-				// O(boxes × animations) and O(labels × animations) hot work, both
-				// of which grow with multi-select.
-				const animationsById = new Map<string, AnimatedBounds>();
-				for (const animation of grabbedAnimations) {
-					animationsById.set(animation.id, animation);
-				}
-
-				for (const box of boxesToProcess) {
-					if (!animationsById.has(box.id)) {
-						const newAnimation = createAnimatedBounds(box.id, box.bounds, {
-							createdAt: box.createdAt,
-						});
-						grabbedAnimations.push(newAnimation);
-						animationsById.set(box.id, newAnimation);
-					}
-				}
-
-				for (const animation of grabbedAnimations) {
-					const matchingBox = boxesById.get(animation.id);
-					if (matchingBox) {
-						updateAnimationTarget(animation, matchingBox.bounds);
-					}
-				}
-
-				const activeLabelIds = new Set<string>();
-				for (const instance of instancesToProcess) {
-					const boundsToRender = resolveBoundsArray(instance);
-					const targetOpacity = instance.status === 'fading' ? 0 : 1;
-
-					for (let index = 0; index < boundsToRender.length; index++) {
-						const bounds = boundsToRender[index];
-						const animationId = `label-${instance.id}-${index}`;
-						activeLabelIds.add(animationId);
-
-						const existingAnimation = animationsById.get(animationId);
-						if (existingAnimation) {
-							updateAnimationTarget(existingAnimation, bounds, targetOpacity);
-						} else {
-							const newAnimation = createAnimatedBounds(animationId, bounds, {
-								opacity: 1,
-								targetOpacity,
-							});
-							grabbedAnimations.push(newAnimation);
-							animationsById.set(animationId, newAnimation);
-						}
-					}
-				}
-
-				// Boxes stay in the store for their full fade-out, so an animation
-				// whose box is gone was cleared explicitly (reset/escape) and must
-				// not linger — an orphaned remnant can't track layout shifts and
-				// would freeze at stale coordinates.
-				grabbedAnimations = grabbedAnimations.filter((animation) => {
-					if (animation.id.startsWith('label-')) {
-						return activeLabelIds.has(animation.id);
-					}
-					return boxesById.has(animation.id);
-				});
-
-				scheduleAnimationFrame();
-			},
-		),
-	);
-
-	onMount(() => {
+	useEffect(() => {
 		initializeCanvas();
 		scheduleAnimationFrame();
 
@@ -582,7 +587,7 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 
 		const handleDevicePixelRatioChange = () => {
 			const newDevicePixelRatio = Math.max(window.devicePixelRatio || 1, MIN_DEVICE_PIXEL_RATIO);
-			if (newDevicePixelRatio !== devicePixelRatio) {
+			if (newDevicePixelRatio !== devicePixelRatio.current) {
 				handleWindowResize();
 				setupDprMediaQuery();
 			}
@@ -598,19 +603,19 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 
 		setupDprMediaQuery();
 
-		onCleanup(() => {
+		return () => {
 			window.removeEventListener('resize', handleWindowResize);
 			if (currentDprMediaQuery) {
 				currentDprMediaQuery.removeEventListener('change', handleDevicePixelRatioChange);
 			}
-			if (animationFrameId !== null) {
-				nativeCancelAnimationFrame(animationFrameId);
+			if (animationFrameId.current !== null) {
+				nativeCancelAnimationFrame(animationFrameId.current);
 			}
-			if (fadeWakeTimeoutId !== null) {
-				window.clearTimeout(fadeWakeTimeoutId);
+			if (fadeWakeTimeoutId.current !== null) {
+				window.clearTimeout(fadeWakeTimeoutId.current);
 			}
-		});
-	});
+		};
+	}, []);
 
 	return (
 		<canvas
@@ -620,8 +625,8 @@ export const OverlayCanvas: Component<OverlayCanvasProps> = (props) => {
 				position: 'fixed',
 				top: '0',
 				left: '0',
-				'pointer-events': 'none',
-				'z-index': String(Z_INDEX_OVERLAY_CANVAS),
+				pointerEvents: 'none',
+				zIndex: Z_INDEX_OVERLAY_CANVAS,
 			}}
 		/>
 	);

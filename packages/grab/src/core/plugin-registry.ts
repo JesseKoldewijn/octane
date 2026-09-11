@@ -1,5 +1,5 @@
-import { getOwner, onCleanup } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { getOwner, onCleanup } from '../reactivity/index.js';
+import { createStore } from '../reactivity/index.js';
 import type {
 	Position,
 	Plugin,

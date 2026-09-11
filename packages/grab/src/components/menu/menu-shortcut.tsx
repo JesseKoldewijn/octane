@@ -1,4 +1,4 @@
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
 import { cn } from '../../utils/cn.js';
 import { ShortcutHint } from '../shortcut-hint.js';
 
@@ -8,7 +8,7 @@ interface MenuShortcutProps {
 	class?: string;
 }
 
-export const MenuShortcut: Component<MenuShortcutProps> = (props) => (
+export const MenuShortcut = (props: MenuShortcutProps) => (
 	<ShortcutHint
 		shortcut={props.shortcut}
 		modifier={props.modifier}

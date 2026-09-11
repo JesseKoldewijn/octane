@@ -1,4 +1,4 @@
-import { createContext, useContext, type Accessor } from 'solid-js';
+import { createContext, useContext } from 'octane';
 
 export interface MenuItemRegistration {
 	value: string;
@@ -11,9 +11,11 @@ export interface MenuItemRegistration {
 export interface MenuStore {
 	keyboardNavigation: boolean;
 	clearActiveOnPointerLeave: boolean;
-	activeValue: Accessor<string | null>;
-	activeDescendantId: Accessor<string | undefined>;
+	subscribe: (listener: () => void) => () => void;
+	activeValue: () => string | null;
+	activeDescendantId: () => string | undefined;
 	setActiveItem: (value: string | null) => void;
+	setControlledValue: (value: string | null) => void;
 	createItemId: () => string;
 	canActivateOnHover: () => boolean;
 	notePointerMove: () => void;
@@ -27,9 +29,10 @@ export interface MenuStore {
 	selectPrevious: () => void;
 	setHighlightContainer: (element: HTMLElement) => void;
 	setHighlightRail: (element: HTMLElement) => void;
+	dispose: () => void;
 }
 
-const MenuContext = createContext<MenuStore>();
+const MenuContext = createContext<MenuStore | undefined>(undefined);
 
 export const useMenuStore = (): MenuStore => {
 	const store = useContext(MenuContext);

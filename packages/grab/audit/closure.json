@@ -1,5 +1,5 @@
 {
-  "runtimeDependencies": ["@react-grab/cli", "octane", "solid-js", "tailwindcss"],
+  "runtimeDependencies": ["@react-grab/cli", "octane", "tailwindcss"],
   "adaptedSources": [
     {
       "packageName": "react-grab",

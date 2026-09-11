@@ -1,4 +1,4 @@
-import { Show, type Component } from 'solid-js';
+/** @jsxImportSource octane */
 import { isMac } from '../utils/is-mac.js';
 import { IconCommand } from './icons/icon-command.jsx';
 import { IconReturn } from './icons/icon-return.jsx';
@@ -9,27 +9,27 @@ interface ShortcutHintProps {
 	class?: string;
 }
 
-export const ShortcutHint: Component<ShortcutHintProps> = (props) => {
-	const isEnter = () => props.shortcut === 'Enter';
-	const requiresModifier = () => props.modifier !== false;
+export const ShortcutHint = (props: ShortcutHintProps) => {
+	const isEnter = props.shortcut === 'Enter';
+	const requiresModifier = props.modifier !== false;
 	const isMacPlatform = isMac();
 
 	return (
-		<span
-			class={props.class}
-			style={{ display: 'inline-flex', 'align-items': 'center', gap: '2px' }}
-		>
-			<Show when={isEnter()}>
+		<span class={props.class} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+			{isEnter ? (
 				<IconReturn size={8} />
-			</Show>
-			<Show when={!isEnter()}>
-				<Show when={requiresModifier()} fallback={<span textContent={props.shortcut} />}>
-					<Show when={isMacPlatform} fallback={<span textContent={`Ctrl+${props.shortcut}`} />}>
+			) : requiresModifier ? (
+				isMacPlatform ? (
+					<>
 						<IconCommand size={9} />
-						<span textContent={props.shortcut} />
-					</Show>
-				</Show>
-			</Show>
+						<span>{props.shortcut as string}</span>
+					</>
+				) : (
+					<span>{`Ctrl+${props.shortcut}` as string}</span>
+				)
+			) : (
+				<span>{props.shortcut as string}</span>
+			)}
 		</span>
 	);
 };

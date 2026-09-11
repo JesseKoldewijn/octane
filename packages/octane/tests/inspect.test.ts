@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from './_helpers.js';
+import { createRoot, flushSync, delegateEvents } from '../src/index.js';
 import {
 	getOwnerFromHostInstance,
 	getOwnerStackFromHost,
@@ -53,6 +54,29 @@ describe('octane/inspect', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(r.find('[data-testid="count"]').textContent).toBe('1');
+		r.unmount();
+	});
+
+	it('createRoot with inspect:false skips inspect registration', () => {
+		const container = document.createElement('div');
+		document.body.appendChild(container);
+		const root = createRoot(container, { inspect: false });
+		root.render(InspectLabel, { text: 'hidden' });
+		flushSync(() => {});
+		const host = container.querySelector('[data-testid="label"]')!;
+		expect(host).not.toBeNull();
+		// The host is rendered but NOT findable via inspect — the root was never
+		// registered, so getOwnerFromHostInstance cannot resolve it.
+		expect(getOwnerFromHostInstance(host)).toBeNull();
+		root.unmount();
+		container.remove();
+	});
+
+	it('normal createRoot still registers for inspect', () => {
+		const r = mount(InspectLabel, { text: 'visible' });
+		expect(isInstrumentationActive()).toBe(true);
+		const host = r.find('[data-testid="label"]');
+		expect(getOwnerFromHostInstance(host)).not.toBeNull();
 		r.unmount();
 	});
 });

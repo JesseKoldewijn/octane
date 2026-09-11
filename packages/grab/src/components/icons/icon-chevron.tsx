@@ -1,11 +1,11 @@
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
 
 interface IconChevronProps {
 	size?: number;
 	class?: string;
 }
 
-export const IconChevron: Component<IconChevronProps> = (props) => {
+export const IconChevron = (props: IconChevronProps) => {
 	const size = () => props.size ?? 14;
 
 	return (

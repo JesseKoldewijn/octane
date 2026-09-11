@@ -2,17 +2,18 @@
 
 Select context for coding agents directly from your Octane website. This is an
 API-compatible port of [`react-grab@0.2.0`](https://github.com/aidenybai/react-grab)
-that keeps the Solid overlay UI and replaces React Fiber inspection (`bippy`)
-with Octane's `octane/inspect` adapter.
+that replaces React Fiber inspection (`bippy`) with Octane's `octane/inspect`
+adapter and renders the overlay UI with Octane (`createRoot({ inspect: false })`
+so grab chrome never appears in owner stacks).
 
 ## Installation
 
 ```sh
-npm install @octanejs/grab octane solid-js @react-grab/cli
+npm install @octanejs/grab octane @react-grab/cli
 ```
 
 ```sh
-pnpm add @octanejs/grab octane solid-js @react-grab/cli
+pnpm add @octanejs/grab octane @react-grab/cli
 ```
 
 ## Usage
@@ -24,6 +25,9 @@ import '@octanejs/grab/styles.css';
 const api = init();
 // Prefer the Octane global; `__REACT_GRAB__` remains as a compatibility alias.
 ```
+
+Mark app subtrees as non-grabbable with `data-react-grab-ignore`. Grab's own
+overlay host (`data-react-grab`) is never selectable.
 
 Primitives such as `isElementGrabbable`, `freeze`, and `unfreeze` are available
 from `@octanejs/grab/primitives`.

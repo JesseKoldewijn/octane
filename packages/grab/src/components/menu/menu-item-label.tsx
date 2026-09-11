@@ -1,4 +1,4 @@
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
 import { cn } from '../../utils/cn.js';
 
 interface MenuItemLabelProps {
@@ -6,9 +6,8 @@ interface MenuItemLabelProps {
 	textContent: string;
 }
 
-export const MenuItemLabel: Component<MenuItemLabelProps> = (props) => (
-	<span
-		class={cn('text-[13px] leading-4 font-sans font-medium', props.class)}
-		textContent={props.textContent}
-	/>
+export const MenuItemLabel = (props: MenuItemLabelProps) => (
+	<span class={cn('text-[13px] leading-4 font-sans font-medium', props.class)}>
+		{props.textContent as string}
+	</span>
 );

@@ -1,4 +1,5 @@
-import { onCleanup, onMount, Show, type Component, type JSX } from 'solid-js';
+/** @jsxImportSource octane */
+import { useEffect, useMemo, useRef, useSyncExternalStore, type OctaneNode } from 'octane';
 import type { DropdownAnchor } from '../../types.js';
 import { DROPDOWN_EDGE_TRANSFORM_ORIGIN, Z_INDEX_OVERLAY } from '../../constants.js';
 import { cn } from '../../utils/cn.js';
@@ -15,58 +16,73 @@ interface AnchoredDropdownSurfaceProps {
 	// When false the surface is display-only (pointer-events: none): it never
 	// captures clicks, so page selection works through it. Defaults to true.
 	interactive?: boolean;
-	children: JSX.Element;
+	children: OctaneNode;
 }
 
 // Shared chrome for toolbar-anchored dropdowns: the mount/measure lifecycle,
 // the spring/exit animation, viewport-clamped positioning, and the
 // pointer-event suppression that keeps clicks inside the dropdown from leaking
 // to the page. Consumers supply only their panel contents.
-export const AnchoredDropdownSurface: Component<AnchoredDropdownSurfaceProps> = (props) => {
-	let containerRef: HTMLDivElement | undefined;
+export const AnchoredDropdownSurface = (props: AnchoredDropdownSurfaceProps) => {
+	const containerRef = useRef<HTMLDivElement | null>(null);
+	// Octane props are per-render objects, unlike Solid's live getters, so keep
+	// the latest props reachable from the mount-once listener callbacks.
+	const propsRef = useRef(props);
+	propsRef.current = props;
 
 	const isInteractive = () => props.interactive !== false;
 
-	const dropdown = createAnchoredDropdown(
-		() => containerRef,
-		() => props.position,
+	// The dropdown controller owns the mount/measure/animation lifecycle and must
+	// persist across renders, so create it once and bridge its state through
+	// useSyncExternalStore.
+	const dropdown = useMemo(
+		() => createAnchoredDropdown(() => containerRef.current ?? undefined),
+		[],
 	);
+	const shouldMount = useSyncExternalStore(dropdown.subscribe, dropdown.shouldMount);
+	const isAnimatedIn = useSyncExternalStore(dropdown.subscribe, dropdown.isAnimatedIn);
+	const lastAnchorEdge = useSyncExternalStore(dropdown.subscribe, dropdown.lastAnchorEdge);
+	const displayPosition = useSyncExternalStore(dropdown.subscribe, dropdown.displayPosition);
 
-	onMount(() => {
+	useEffect(() => {
+		dropdown.setAnchor(props.position);
+	}, [props.position]);
+
+	useEffect(() => {
 		dropdown.measure();
-		const unregisterOverlayDismiss = props.onDismiss
+		const unregisterOverlayDismiss = propsRef.current.onDismiss
 			? registerOverlayDismiss({
-					isOpen: () => Boolean(props.position),
-					onDismiss: props.onDismiss,
+					isOpen: () => Boolean(propsRef.current.position),
+					onDismiss: () => propsRef.current.onDismiss?.(),
 				})
 			: undefined;
 
-		onCleanup(() => {
-			dropdown.clearAnimationHandles();
+		return () => {
+			dropdown.dispose();
 			unregisterOverlayDismiss?.();
-		});
-	});
+		};
+	}, []);
 
 	return (
-		<Show when={dropdown.shouldMount()}>
+		shouldMount && (
 			<div
 				ref={containerRef}
 				data-react-grab-ignore-events
 				{...{ [props.dataAttribute]: '' }}
 				class={cn(
 					'fixed font-sans text-[13px] antialiased [filter:var(--rg-drop-shadow)] select-none will-change-[opacity,transform]',
-					dropdown.isAnimatedIn()
+					isAnimatedIn
 						? 'transition-[opacity,transform] duration-220 ease-spring'
 						: 'transition-[opacity,transform] duration-120 ease-drawer',
 				)}
 				style={{
-					top: `${dropdown.displayPosition().top}px`,
-					left: `${dropdown.displayPosition().left}px`,
-					'z-index': `${Z_INDEX_OVERLAY}`,
-					'pointer-events': isInteractive() && dropdown.isAnimatedIn() ? 'auto' : 'none',
-					'transform-origin': DROPDOWN_EDGE_TRANSFORM_ORIGIN[dropdown.lastAnchorEdge()],
-					opacity: dropdown.isAnimatedIn() ? '1' : '0',
-					transform: dropdown.isAnimatedIn() ? 'scale(1)' : 'scale(0.92)',
+					top: `${displayPosition.top}px`,
+					left: `${displayPosition.left}px`,
+					zIndex: Z_INDEX_OVERLAY,
+					pointerEvents: isInteractive() && isAnimatedIn ? 'auto' : 'none',
+					transformOrigin: DROPDOWN_EDGE_TRANSFORM_ORIGIN[lastAnchorEdge],
+					opacity: isAnimatedIn ? 1 : 0,
+					transform: isAnimatedIn ? 'scale(1)' : 'scale(0.92)',
 				}}
 				onPointerDown={suppressMenuEvent}
 				onMouseDown={suppressMenuEvent}
@@ -75,6 +91,6 @@ export const AnchoredDropdownSurface: Component<AnchoredDropdownSurfaceProps> = 
 			>
 				{props.children}
 			</div>
-		</Show>
+		)
 	);
 };

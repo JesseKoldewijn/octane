@@ -1,4 +1,3 @@
-import { createEffect, createMemo, createSignal, on, type Accessor } from 'solid-js';
 import { createMenuHighlight } from '../../utils/create-menu-highlight.js';
 import type { MenuItemRegistration, MenuStore } from './menu-context.js';
 
@@ -10,10 +9,11 @@ interface CreateMenuStoreOptions {
 	// phantom pointerenter (and yanking the active row) when the list mounts
 	// or repositions under it.
 	requirePointerMove?: boolean;
-	// Controlled mode (cmdk-style): when `value` is provided the active row is
-	// owned by the parent and every activation is reported through
-	// `onValueChange` instead of mutating internal state.
-	value?: Accessor<string | null>;
+	// Controlled mode (cmdk-style): when a controlled value is used the active
+	// row is owned by the parent and every activation is reported through
+	// `onValueChange` instead of mutating internal state. Pass the initial value
+	// here and push subsequent updates through `store.setControlledValue`.
+	value?: string | null;
 	onValueChange?: (value: string | null) => void;
 	highlight?: {
 		topCornerRadiusPx?: number;
@@ -29,38 +29,53 @@ export const createMenuStore = (options: CreateMenuStoreOptions = {}): MenuStore
 	let idCounter = 0;
 	let didPointerMove = false;
 
-	const isControlled = options.value !== undefined;
-	const [internalActiveValue, setInternalActiveValue] = createSignal<string | null>(null);
-	const [registryVersion, bumpRegistryVersion] = createSignal(0);
+	const isControlled = options.value !== undefined || options.onValueChange !== undefined;
+	let internalActiveValue: string | null = null;
+	let controlledValue: string | null = options.value ?? null;
 
-	const activeValue = createMemo<string | null>(() =>
-		isControlled ? (options.value?.() ?? null) : internalActiveValue(),
-	);
+	const listeners = new Set<() => void>();
+	const notify = (): void => {
+		for (const listener of [...listeners]) listener();
+	};
+
+	const highlight = createMenuHighlight(options.highlight ?? {});
+
+	const activeValue = (): string | null => (isControlled ? controlledValue : internalActiveValue);
+
+	// Imperative replacement for the former `createEffect(on([activeValue,
+	// registryVersion]))`: sync the visible highlight to whatever row is active
+	// whenever the active value or the registry changes.
+	const syncHighlight = (): void => {
+		const value = activeValue();
+		if (value === null) {
+			highlight.clearHighlight();
+			return;
+		}
+		const registration = itemsByValue.get(value);
+		if (registration) {
+			highlight.updateHighlight(registration.element);
+		} else {
+			highlight.clearHighlight();
+		}
+	};
 
 	const setActiveItem = (value: string | null): void => {
 		if (isControlled) {
 			options.onValueChange?.(value);
 			return;
 		}
-		setInternalActiveValue(value);
+		if (internalActiveValue === value) return;
+		internalActiveValue = value;
+		syncHighlight();
+		notify();
 	};
 
-	const highlight = createMenuHighlight(options.highlight ?? {});
-
-	createEffect(
-		on([activeValue, registryVersion], ([value]) => {
-			if (value === null) {
-				highlight.clearHighlight();
-				return;
-			}
-			const registration = itemsByValue.get(value);
-			if (registration) {
-				highlight.updateHighlight(registration.element);
-			} else {
-				highlight.clearHighlight();
-			}
-		}),
-	);
+	const setControlledValue = (value: string | null): void => {
+		if (controlledValue === value) return;
+		controlledValue = value;
+		syncHighlight();
+		notify();
+	};
 
 	const enabledValues = (): string[] =>
 		orderedValues.filter((value) => itemsByValue.get(value)?.isEnabled());
@@ -94,19 +109,23 @@ export const createMenuStore = (options: CreateMenuStoreOptions = {}): MenuStore
 		setActiveItem(candidates[previousIndex]);
 	};
 
-	const activeDescendantId = createMemo<string | undefined>(() => {
-		registryVersion();
+	const activeDescendantId = (): string | undefined => {
 		const value = activeValue();
 		if (value === null) return undefined;
 		return itemsByValue.get(value)?.domId;
-	});
+	};
 
 	return {
 		keyboardNavigation: options.keyboardNavigation ?? false,
 		clearActiveOnPointerLeave: options.clearActiveOnPointerLeave ?? false,
+		subscribe: (listener) => {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
 		activeValue,
 		activeDescendantId,
 		setActiveItem,
+		setControlledValue,
 		createItemId: () => `${idPrefix}-item-${idCounter++}`,
 		canActivateOnHover: () => !(options.requirePointerMove ?? false) || didPointerMove,
 		notePointerMove: () => {
@@ -118,16 +137,18 @@ export const createMenuStore = (options: CreateMenuStoreOptions = {}): MenuStore
 		registerItem: (registration) => {
 			itemsByValue.set(registration.value, registration);
 			if (!orderedValues.includes(registration.value)) orderedValues.push(registration.value);
-			bumpRegistryVersion((version) => version + 1);
+			syncHighlight();
+			notify();
 		},
 		unregisterItem: (value) => {
 			itemsByValue.delete(value);
 			const orderIndex = orderedValues.indexOf(value);
 			if (orderIndex !== -1) orderedValues.splice(orderIndex, 1);
-			if (!isControlled) {
-				setInternalActiveValue((current) => (current === value ? null : current));
+			if (!isControlled && internalActiveValue === value) {
+				internalActiveValue = null;
 			}
-			bumpRegistryVersion((version) => version + 1);
+			syncHighlight();
+			notify();
 		},
 		getActiveItem: () => {
 			const value = activeValue();
@@ -139,5 +160,6 @@ export const createMenuStore = (options: CreateMenuStoreOptions = {}): MenuStore
 		selectPrevious,
 		setHighlightContainer: highlight.containerRef,
 		setHighlightRail: highlight.highlightRef,
+		dispose: () => highlight.dispose(),
 	};
 };

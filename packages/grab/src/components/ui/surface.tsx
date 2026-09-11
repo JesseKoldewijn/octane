@@ -1,4 +1,5 @@
-import { splitProps, type Component, type JSX } from 'solid-js';
+/** @jsxImportSource octane */
+import type { OctaneNode } from 'octane';
 import { cn } from '../../utils/cn.js';
 import { createVariants } from '../../utils/create-variants.js';
 
@@ -15,11 +16,19 @@ const surfaceVariants = createVariants(
 	},
 );
 
-interface SurfaceProps extends JSX.HTMLAttributes<HTMLDivElement> {
+interface SurfaceProps extends Record<string, unknown> {
 	shape?: 'panel' | 'pill';
+	class?: string;
+	children?: OctaneNode;
+	style?: Record<string, string | number>;
+	ref?: (el: HTMLDivElement | null) => void;
 }
 
-export const Surface: Component<SurfaceProps> = (props) => {
-	const [local, rest] = splitProps(props, ['shape', 'class']);
-	return <div class={cn(surfaceVariants({ shape: local.shape }), local.class)} {...rest} />;
+export const Surface = (props: SurfaceProps) => {
+	const { shape, class: className, children, ...rest } = props;
+	return (
+		<div class={cn(surfaceVariants({ shape }), className)} {...rest}>
+			{children}
+		</div>
+	);
 };

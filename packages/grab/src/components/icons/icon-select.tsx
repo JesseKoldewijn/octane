@@ -1,4 +1,4 @@
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
 import { cn } from '../../utils/cn.js';
 import { SELECT_ICON_ROTATION_TRANSITION_MS } from '../../constants.js';
 
@@ -8,7 +8,7 @@ interface IconSelectProps {
 	rotationDeg?: number;
 }
 
-export const IconSelect: Component<IconSelectProps> = (props) => {
+export const IconSelect = (props: IconSelectProps) => {
 	const size = () => props.size ?? 14;
 	const rotationDeg = () => props.rotationDeg ?? 0;
 
@@ -17,9 +17,9 @@ export const IconSelect: Component<IconSelectProps> = (props) => {
 			class={cn('inline-flex items-center justify-center will-change-transform', props.class)}
 			style={{
 				transform: `rotate(${rotationDeg()}deg)`,
-				'transition-property': 'transform',
-				'transition-duration': `${SELECT_ICON_ROTATION_TRANSITION_MS}ms`,
-				'transition-timing-function': 'cubic-bezier(0.32, 0.72, 0, 1)',
+				transitionProperty: 'transform',
+				transitionDuration: `${SELECT_ICON_ROTATION_TRANSITION_MS}ms`,
+				transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
 			}}
 		>
 			<svg

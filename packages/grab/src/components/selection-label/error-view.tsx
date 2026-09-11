@@ -1,30 +1,43 @@
-import { Show, type Component } from 'solid-js';
+/** @jsxImportSource octane */
+import { useEffect, useMemo, useRef } from 'octane';
 import type { ErrorViewProps } from '../../types.js';
+import { cn } from '../../utils/cn.js';
 import { createConfirmationKeyboard } from '../../utils/create-confirmation-keyboard.js';
 import { isEventFromOverlay } from '../../utils/is-event-from-overlay.js';
 import { IconRetry } from '../icons/icon-retry.jsx';
 import { Button } from '../ui/button.js';
 import { BottomSection } from './bottom-section.js';
 
-export const ErrorView: Component<ErrorViewProps> = (props) => {
-	const { claimFocus } = createConfirmationKeyboard({
-		onEnter: (event) => {
-			if (isEventFromOverlay(event, 'data-react-grab-error-ok')) {
-				event.preventDefault();
-				event.stopPropagation();
-				props.onAcknowledge?.();
-				return;
-			}
-			event.preventDefault();
-			event.stopPropagation();
-			props.onRetry?.();
-		},
-		onEscape: (event) => {
-			event.preventDefault();
-			event.stopPropagation();
-			props.onAcknowledge?.();
-		},
-	});
+export const ErrorView = (props: ErrorViewProps) => {
+	// React props are per-render objects, so route the long-lived keyboard
+	// handlers through a ref that always holds the latest callbacks.
+	const latestRef = useRef(props);
+	latestRef.current = props;
+
+	const controller = useMemo(
+		() =>
+			createConfirmationKeyboard({
+				onEnter: (event) => {
+					if (isEventFromOverlay(event, 'data-react-grab-error-ok')) {
+						event.preventDefault();
+						event.stopPropagation();
+						latestRef.current.onAcknowledge?.();
+						return;
+					}
+					event.preventDefault();
+					event.stopPropagation();
+					latestRef.current.onRetry?.();
+				},
+				onEscape: (event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					latestRef.current.onAcknowledge?.();
+				},
+			}),
+		[],
+	);
+	const claimFocus = controller.claimFocus;
+	useEffect(() => controller.register(), []);
 
 	const hasActions = () => Boolean(props.onRetry || props.onAcknowledge);
 
@@ -38,19 +51,22 @@ export const ErrorView: Component<ErrorViewProps> = (props) => {
 			onClick={claimFocus}
 		>
 			<div
-				class="contain-layout shrink-0 flex items-start gap-1 px-2 w-full h-fit"
-				classList={{ 'pt-1.5 pb-1': hasActions(), 'py-1.5': !hasActions() }}
+				class={cn('contain-layout shrink-0 flex items-start gap-1 px-2 w-full h-fit', {
+					'pt-1.5 pb-1': hasActions(),
+					'py-1.5': !hasActions(),
+				})}
 			>
 				<span
 					class="text-[var(--rg-error-text)] text-[13px] leading-4 font-sans font-medium overflow-hidden line-clamp-5"
 					title={props.error}
-					textContent={props.error}
-				/>
+				>
+					{props.error as string}
+				</span>
 			</div>
-			<Show when={hasActions()}>
+			{hasActions() && (
 				<BottomSection>
 					<div class="contain-layout shrink-0 flex items-center justify-end gap-[5px] w-full h-fit">
-						<Show when={props.onRetry}>
+						{props.onRetry && (
 							<Button
 								data-react-grab-retry
 								class="gap-1"
@@ -62,8 +78,8 @@ export const ErrorView: Component<ErrorViewProps> = (props) => {
 								</span>
 								<IconRetry size={10} aria-hidden="true" class="text-[var(--rg-text-secondary)]" />
 							</Button>
-						</Show>
-						<Show when={props.onAcknowledge}>
+						)}
+						{props.onAcknowledge && (
 							<Button
 								data-react-grab-error-ok
 								class="gap-1"
@@ -74,10 +90,10 @@ export const ErrorView: Component<ErrorViewProps> = (props) => {
 									Ok
 								</span>
 							</Button>
-						</Show>
+						)}
 					</div>
 				</BottomSection>
-			</Show>
+			)}
 		</div>
 	);
 };

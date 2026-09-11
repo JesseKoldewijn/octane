@@ -1,21 +1,22 @@
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
 
-interface IconSubmitProps {
+interface IconSubmitProps extends Record<string, unknown> {
 	size?: number;
 	class?: string;
 }
 
-export const IconSubmit: Component<IconSubmitProps> = (props) => {
-	const size = () => props.size ?? 10;
+export const IconSubmit = (props: IconSubmitProps) => {
+	const { size = 10, class: className, ...rest } = props;
 
 	return (
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
-			width={size()}
-			height={size()}
+			width={size}
+			height={size}
 			viewBox="0 0 24 24"
 			fill="currentColor"
-			class={props.class}
+			class={className}
+			{...rest}
 		>
 			<path
 				fill-rule="evenodd"

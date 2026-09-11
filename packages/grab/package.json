@@ -56,7 +56,6 @@
   },
   "dependencies": {
     "@react-grab/cli": "0.2.0",
-    "solid-js": "1.9.14",
     "tailwindcss": "^4.1.0"
   },
   "peerDependencies": {
@@ -67,7 +66,6 @@
     "@tailwindcss/cli": "^4.1.0",
     "octane": "workspace:*",
     "vitest": "catalog:default",
-    "vite-plugin-solid": "2.10.2",
     "vite": "catalog:default",
     "@testing-library/jest-dom": "catalog:default"
   }

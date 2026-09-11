@@ -11,8 +11,8 @@ import {
 	on,
 	mapArray,
 	untrack,
-} from 'solid-js';
-import { render } from 'solid-js/web';
+} from '../reactivity/index.js';
+import { createRoot as createOctaneRoot } from 'octane';
 import { createGrabStore } from './store.js';
 import { CopyFailedError, RecoverableError } from '../errors.js';
 import {
@@ -21,10 +21,6 @@ import {
 	hasTextSelectionOnPage,
 } from '../utils/is-keyboard-event-triggered-by-input.js';
 import { mountRoot } from '../utils/mount-root.js';
-import {
-	bindSolidDelegatedEventsToRoot,
-	installSolidDocumentListenerRedirect,
-} from '../utils/solid-event-root.js';
 import {
 	getScopeContainer,
 	setScopeContainer,
@@ -3458,15 +3454,6 @@ export const init = (rawOptions?: OptionsType): ReactGrabAPIType => {
 		} = mountRoot(overlayCssText);
 		onCleanup(cancelPendingAttachment);
 
-		// Octane and Solid both stamp `el.$$click` (etc.). Keep Solid's delegated
-		// walk inside the overlay shadow root so it never sees Octane bundles.
-		const overlayShadow = rendererHost.shadowRoot;
-		if (overlayShadow) {
-			const uninstallSolidRedirect = installSolidDocumentListenerRedirect();
-			bindSolidDelegatedEventsToRoot(overlayShadow);
-			onCleanup(uninstallSolidRedirect);
-		}
-
 		const themeWatcher = watchAppTheme(rendererHost);
 		onCleanup(themeWatcher.cleanup);
 
@@ -4040,115 +4027,111 @@ export const init = (rawOptions?: OptionsType): ReactGrabAPIType => {
 		});
 
 		if (pluginRegistry.store.theme.enabled) {
-			// The renderer is dynamically imported because solid-js/web's
-			// solid-js/web's delegateEvents() runs at module evaluation time and
-			// accesses document, which would crash during SSR.
+			// Dynamic import keeps the overlay UI out of the critical SSR path.
 			void import('../components/renderer.js')
 				.then(({ ReactGrabRenderer }) => {
 					if (disposed) return;
-					disposeRenderer = render(() => {
-						return (
-							<ReactGrabRenderer
-								selectionVisible={selectionVisible()}
-								selectionBounds={selectionBounds()}
-								selectionBoundsMultiple={selectionBoundsMultiple()}
-								selectionShouldSnap={
-									store.frozenElements.length > 0 || dragPreviewBounds().length > 0
-								}
-								selectionElementsCount={store.frozenElements.length}
-								frozenLabelEntryAccessors={visibleFrozenLabelEntryAccessors()}
-								pendingShiftPreviewEntry={pendingShiftPreviewEntry() ?? undefined}
-								selectionFilePath={store.selectionFilePath ?? undefined}
-								selectionTagName={selectionTagName()}
-								selectionComponentName={resolvedComponentName()}
-								selectionLabelVisible={selectionLabelVisible()}
-								selectionLabelStatus="idle"
-								hierarchyState={hierarchyState()}
-								hierarchyMenuPosition={hierarchyMenuPosition()}
-								labelInstances={computedLabelInstances()}
-								labelInstanceAccessors={labelInstanceAccessors()}
-								dragVisible={dragVisible()}
-								dragBounds={dragBounds()}
-								grabbedBoxes={computedGrabbedBoxes()}
-								mouseX={
-									store.frozenElements.length > 1
-										? undefined
-										: (shiftSelectionLabelMouseX() ?? cursorPosition().x)
-								}
-								isFrozen={isFrozenPhase() || isActivated() || isToolbarSelectHovered()}
-								inputValue={store.inputText}
-								isPromptMode={isPromptMode()}
-								onShowContextMenuInstance={handleShowContextMenuInstance}
-								onRetryInstance={handleRetryInstance}
-								onAcknowledgeErrorInstance={handleAcknowledgeErrorInstance}
-								onLabelInstanceHoverChange={labelController.handleHoverChange}
-								onInputChange={actions.setInputText}
-								onInputSubmit={() => void handleInputSubmit()}
-								selectionLabelShakeCount={selectionLabelShakeCount()}
-								onConfirmDismiss={handleConfirmDismiss}
-								onOpenSelectionFile={openSelectionFile}
-								discardPrompt={
-									keyboardSelection.isPendingDismiss()
-										? {
-												isKeyboardSelection: true,
-												onConfirm: handleConfirmDismiss,
-												onCopy: copyKeyboardSelection,
-											}
-										: isPendingDismiss()
-											? {
-													onConfirm: handleConfirmDismiss,
-													onCancel: handleCancelDismiss,
-												}
-											: undefined
-								}
-								toolbarVisible={pluginRegistry.store.theme.toolbar.enabled}
-								isActive={isActivated()}
-								onToggleActive={handleToggleActive}
-								activeActionId={toolbarActiveActionId()}
-								enabled={isEnabled()}
-								shakeCount={toolbarShakeCount()}
-								onToolbarStateChange={(state) => {
-									setCurrentToolbarState(state);
-									if (state.enabled !== isEnabled()) {
-										setIsEnabled(state.enabled);
-										if (!state.enabled) {
-											forceDeactivateAll();
-											dismissAllPopups();
-										}
+					const octaneRoot = createOctaneRoot(rendererRoot, { inspect: false });
+					createEffect(() => {
+						octaneRoot.render(ReactGrabRenderer, {
+							selectionVisible: selectionVisible(),
+							selectionBounds: selectionBounds(),
+							selectionBoundsMultiple: selectionBoundsMultiple(),
+							selectionShouldSnap:
+								store.frozenElements.length > 0 || dragPreviewBounds().length > 0,
+							selectionElementsCount: store.frozenElements.length,
+							frozenLabelEntryAccessors: visibleFrozenLabelEntryAccessors(),
+							pendingShiftPreviewEntry: pendingShiftPreviewEntry() ?? undefined,
+							selectionFilePath: store.selectionFilePath ?? undefined,
+							selectionTagName: selectionTagName(),
+							selectionComponentName: resolvedComponentName(),
+							selectionLabelVisible: selectionLabelVisible(),
+							selectionLabelStatus: 'idle',
+							hierarchyState: hierarchyState(),
+							hierarchyMenuPosition: hierarchyMenuPosition(),
+							labelInstances: computedLabelInstances(),
+							labelInstanceAccessors: labelInstanceAccessors(),
+							dragVisible: dragVisible(),
+							dragBounds: dragBounds(),
+							grabbedBoxes: computedGrabbedBoxes(),
+							mouseX:
+								store.frozenElements.length > 1
+									? undefined
+									: (shiftSelectionLabelMouseX() ?? cursorPosition().x),
+							isFrozen: isFrozenPhase() || isActivated() || isToolbarSelectHovered(),
+							inputValue: store.inputText,
+							isPromptMode: isPromptMode(),
+							onShowContextMenuInstance: handleShowContextMenuInstance,
+							onRetryInstance: handleRetryInstance,
+							onAcknowledgeErrorInstance: handleAcknowledgeErrorInstance,
+							onLabelInstanceHoverChange: labelController.handleHoverChange,
+							onInputChange: actions.setInputText,
+							onInputSubmit: () => void handleInputSubmit(),
+							selectionLabelShakeCount: selectionLabelShakeCount(),
+							onConfirmDismiss: handleConfirmDismiss,
+							onOpenSelectionFile: openSelectionFile,
+							discardPrompt: keyboardSelection.isPendingDismiss()
+								? {
+										isKeyboardSelection: true,
+										onConfirm: handleConfirmDismiss,
+										onCopy: copyKeyboardSelection,
 									}
-									notifyToolbarStateChangeSubscribers(toolbarStateChangeCallbacks, state);
-								}}
-								onSubscribeToToolbarStateChanges={(callback) => {
-									toolbarStateChangeCallbacks.add(callback);
-									return () => {
-										toolbarStateChangeCallbacks.delete(callback);
-									};
-								}}
-								onToolbarSelectHoverChange={setIsToolbarSelectHovered}
-								onToolbarRef={(element) => {
-									toolbarElement = element;
-								}}
-								contextMenuPosition={contextMenuPosition()}
-								contextMenuBounds={contextMenuBounds()}
-								contextMenuTagName={contextMenuTagName()}
-								contextMenuComponentName={contextMenuComponentName()}
-								contextMenuHasFilePath={Boolean(contextMenuFilePath()?.filePath)}
-								actions={pluginRegistry.store.actions}
-								actionContext={contextMenuActionContext()}
-								onContextMenuDismiss={handleContextMenuDismiss}
-								onContextMenuHide={deferHideContextMenu}
-								toolbarMenuPosition={toolbarMenuPosition()}
-								toolbarMenuActions={pluginRegistry.store.actions.filter(
-									(action) => action.showInToolbarMenu === true,
-								)}
-								defaultActionId={currentToolbarState()?.defaultAction ?? DEFAULT_ACTION_ID}
-								defaultActionLabel={defaultToolbarActionLabel()}
-								onSetDefaultAction={handleSetDefaultAction}
-								onToggleToolbarMenu={handleToggleToolbarMenu}
-								onToolbarMenuDismiss={dismissToolbarMenu}
-							/>
-						);
-					}, rendererRoot);
+								: isPendingDismiss()
+									? {
+											onConfirm: handleConfirmDismiss,
+											onCancel: handleCancelDismiss,
+										}
+									: undefined,
+							toolbarVisible: pluginRegistry.store.theme.toolbar.enabled,
+							isActive: isActivated(),
+							onToggleActive: handleToggleActive,
+							activeActionId: toolbarActiveActionId(),
+							enabled: isEnabled(),
+							shakeCount: toolbarShakeCount(),
+							onToolbarStateChange: (state: ToolbarState) => {
+								setCurrentToolbarState(state);
+								if (state.enabled !== isEnabled()) {
+									setIsEnabled(state.enabled);
+									if (!state.enabled) {
+										forceDeactivateAll();
+										dismissAllPopups();
+									}
+								}
+								notifyToolbarStateChangeSubscribers(toolbarStateChangeCallbacks, state);
+							},
+							onSubscribeToToolbarStateChanges: (callback: (state: ToolbarState) => void) => {
+								toolbarStateChangeCallbacks.add(callback);
+								return () => {
+									toolbarStateChangeCallbacks.delete(callback);
+								};
+							},
+							onToolbarSelectHoverChange: setIsToolbarSelectHovered,
+							onToolbarRef: (element: HTMLElement | null) => {
+								toolbarElement = (element as HTMLDivElement | null) ?? undefined;
+							},
+							contextMenuPosition: contextMenuPosition(),
+							contextMenuBounds: contextMenuBounds(),
+							contextMenuTagName: contextMenuTagName(),
+							contextMenuComponentName: contextMenuComponentName(),
+							contextMenuHasFilePath: Boolean(contextMenuFilePath()?.filePath),
+							actions: pluginRegistry.store.actions,
+							actionContext: contextMenuActionContext(),
+							onContextMenuDismiss: handleContextMenuDismiss,
+							onContextMenuHide: deferHideContextMenu,
+							toolbarMenuPosition: toolbarMenuPosition(),
+							toolbarMenuActions: pluginRegistry.store.actions.filter(
+								(action) => action.showInToolbarMenu === true,
+							),
+							defaultActionId: currentToolbarState()?.defaultAction ?? DEFAULT_ACTION_ID,
+							defaultActionLabel: defaultToolbarActionLabel(),
+							onSetDefaultAction: handleSetDefaultAction,
+							onToggleToolbarMenu: handleToggleToolbarMenu,
+							onToolbarMenuDismiss: dismissToolbarMenu,
+						});
+					});
+					disposeRenderer = () => {
+						octaneRoot.unmount();
+					};
 				})
 				.catch((error) => {
 					console.warn('[react-grab] Failed to load renderer:', error);

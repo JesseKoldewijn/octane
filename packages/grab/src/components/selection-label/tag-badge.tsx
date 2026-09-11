@@ -1,8 +1,8 @@
-import { Show, type Component } from 'solid-js';
+/** @jsxImportSource octane */
 import type { TagBadgeProps } from '../../types.js';
 import { cn } from '../../utils/cn.js';
 
-export const TagBadge: Component<TagBadgeProps> = (props) => {
+export const TagBadge = (props: TagBadgeProps) => {
 	const handleMouseEnter = () => {
 		props.onHoverChange?.(true);
 	};
@@ -14,53 +14,46 @@ export const TagBadge: Component<TagBadgeProps> = (props) => {
 	const accessibleName = () =>
 		props.componentName ? `${props.componentName}.${props.tagName}` : props.tagName;
 
-	// Render as a function so the inner span DOM nodes are created fresh per
-	// branch of the outer <Show>. Sharing a single JSX.Element across both
-	// branches is unsafe in SolidJS: a DOM node can only have one parent, so
-	// toggling isClickable can make the label vanish (see solidjs/solid#2216,
-	// solidjs/solid#2357).
+	// Render as a function so the inner span descriptors are created fresh per
+	// branch of the outer ternary, matching the original single-parent contract.
 	const renderTagLabel = () => (
 		<span class="text-[var(--rg-text-primary)] text-[13px] leading-4 h-fit font-medium overflow-hidden text-ellipsis whitespace-nowrap min-w-0">
-			<Show when={props.componentName}>
-				<span textContent={props.componentName} />
-				<span class="text-[var(--rg-text-secondary)]" textContent={`.${props.tagName}`} />
-			</Show>
-			<Show when={!props.componentName}>
-				<span class="text-[var(--rg-text-primary)]" textContent={props.tagName} />
-			</Show>
+			{props.componentName ? (
+				<>
+					<span>{props.componentName as string}</span>
+					<span class="text-[var(--rg-text-secondary)]">{`.${props.tagName}` as string}</span>
+				</>
+			) : (
+				<span class="text-[var(--rg-text-primary)]">{props.tagName as string}</span>
+			)}
 		</span>
 	);
 
-	return (
-		<Show
-			when={props.isClickable}
-			fallback={
-				<div
-					class={cn(
-						'contain-layout flex items-center gap-1 max-w-[280px] overflow-hidden',
-						props.shrink && 'shrink-0',
-					)}
-					onMouseEnter={handleMouseEnter}
-					onMouseLeave={handleMouseLeave}
-					onClick={props.onClick}
-				>
-					{renderTagLabel()}
-				</div>
-			}
+	return props.isClickable ? (
+		<button
+			type="button"
+			aria-label={`Open source for ${accessibleName()}`}
+			class={cn(
+				'contain-layout flex items-center gap-1 max-w-[280px] overflow-hidden cursor-pointer bg-transparent border-none p-0 m-0 text-left',
+				props.shrink && 'shrink-0',
+			)}
+			onMouseEnter={handleMouseEnter}
+			onMouseLeave={handleMouseLeave}
+			onClick={props.onClick}
 		>
-			<button
-				type="button"
-				aria-label={`Open source for ${accessibleName()}`}
-				class={cn(
-					'contain-layout flex items-center gap-1 max-w-[280px] overflow-hidden cursor-pointer bg-transparent border-none p-0 m-0 text-left',
-					props.shrink && 'shrink-0',
-				)}
-				onMouseEnter={handleMouseEnter}
-				onMouseLeave={handleMouseLeave}
-				onClick={props.onClick}
-			>
-				{renderTagLabel()}
-			</button>
-		</Show>
+			{renderTagLabel()}
+		</button>
+	) : (
+		<div
+			class={cn(
+				'contain-layout flex items-center gap-1 max-w-[280px] overflow-hidden',
+				props.shrink && 'shrink-0',
+			)}
+			onMouseEnter={handleMouseEnter}
+			onMouseLeave={handleMouseLeave}
+			onClick={props.onClick}
+		>
+			{renderTagLabel()}
+		</div>
 	);
 };

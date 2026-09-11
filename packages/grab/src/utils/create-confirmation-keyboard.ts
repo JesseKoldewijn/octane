@@ -1,4 +1,3 @@
-import { onCleanup, onMount } from 'solid-js';
 import { confirmationFocusManager } from './confirmation-focus-manager.js';
 import { isKeyboardEventTriggeredByInput } from './is-keyboard-event-triggered-by-input.js';
 import { ignoreRealInput } from './runtime-mode.js';
@@ -10,6 +9,10 @@ interface ConfirmationKeyboardHandlers {
 
 interface ConfirmationKeyboardController {
 	claimFocus: () => void;
+	// Claim a focus slot and start listening; returns the teardown to run on
+	// unmount. Call once from a mount effect (`useEffect(() =>
+	// controller.register(), [])`).
+	register: () => () => void;
 }
 
 // Shared wiring for the confirmation prompts (completion/discard/error): claim
@@ -31,17 +34,17 @@ export const createConfirmationKeyboard = (
 		}
 	});
 
-	onMount(() => {
+	const register = (): (() => void) => {
 		confirmationFocusManager.claim(instanceId);
 		window.addEventListener('keydown', handleKeyDown, { capture: true });
-	});
-
-	onCleanup(() => {
-		confirmationFocusManager.release(instanceId);
-		window.removeEventListener('keydown', handleKeyDown, { capture: true });
-	});
+		return () => {
+			confirmationFocusManager.release(instanceId);
+			window.removeEventListener('keydown', handleKeyDown, { capture: true });
+		};
+	};
 
 	return {
 		claimFocus: () => confirmationFocusManager.claim(instanceId),
+		register,
 	};
 };

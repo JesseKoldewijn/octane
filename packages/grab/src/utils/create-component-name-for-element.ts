@@ -1,4 +1,4 @@
-import { createEffect, createSignal, on, type Accessor, type Setter } from 'solid-js';
+import { createEffect, createSignal, on, type Accessor, type Setter } from '../reactivity/index.js';
 import { getComponentDisplayName, getNearestComponentName } from '../core/context.js';
 
 export const createComponentNameForElement = (

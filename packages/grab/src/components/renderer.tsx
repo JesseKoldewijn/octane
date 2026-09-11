@@ -1,4 +1,4 @@
-import { For, Show, type Component } from 'solid-js';
+/** @jsxImportSource octane */
 import type { ReactGrabRendererProps } from '../types.js';
 import { DEFAULT_ACTION_ID } from '../constants.js';
 import { isElementConnected } from '../utils/is-element-connected.js';
@@ -10,7 +10,10 @@ import { ContextMenu } from './context-menu.js';
 import { ToolbarMenu } from './toolbar/toolbar-menu.js';
 import { HierarchyMenu } from './toolbar/hierarchy-menu.js';
 
-export const ReactGrabRenderer: Component<ReactGrabRendererProps> = (props) => {
+export const ReactGrabRenderer = (props: ReactGrabRendererProps) => {
+	const frozenAccessors = props.frozenLabelEntryAccessors ?? [];
+	const labelAccessors = props.labelInstanceAccessors ?? [];
+
 	return (
 		<>
 			<OverlayCanvas
@@ -24,43 +27,31 @@ export const ReactGrabRenderer: Component<ReactGrabRendererProps> = (props) => {
 				labelInstances={props.labelInstances}
 			/>
 			<FrozenGlow visible={props.isFrozen ?? false} />
-			<Show
-				when={props.selectionLabelVisible && (props.frozenLabelEntryAccessors?.length ?? 0) > 0}
-			>
-				<For each={props.frozenLabelEntryAccessors ?? []}>
-					{(entryAccessor) => (
-						<Show when={entryAccessor.read()}>
-							{(entry) => (
-								<SelectionLabel
-									tagName={entry().tagName}
-									componentName={entry().componentName}
-									selectionBounds={entry().bounds}
-									mouseX={entry().mouseX}
-									visible={true}
-								/>
-							)}
-						</Show>
-					)}
-				</For>
-			</Show>
-			<Show when={props.selectionLabelVisible && props.pendingShiftPreviewEntry}>
-				{(pendingEntry) => (
-					<SelectionLabel
-						tagName={pendingEntry().tagName}
-						componentName={pendingEntry().componentName}
-						selectionBounds={pendingEntry().bounds}
-						mouseX={pendingEntry().mouseX}
-						visible={true}
-					/>
-				)}
-			</Show>
-			<Show
-				when={
-					props.selectionLabelVisible &&
-					props.selectionBounds &&
-					(props.frozenLabelEntryAccessors?.length ?? 0) === 0
-				}
-			>
+			{props.selectionLabelVisible && frozenAccessors.length > 0
+				? frozenAccessors.map((entryAccessor) => {
+						const entry = entryAccessor.read();
+						if (!entry) return null;
+						return (
+							<SelectionLabel
+								tagName={entry.tagName}
+								componentName={entry.componentName}
+								selectionBounds={entry.bounds}
+								mouseX={entry.mouseX}
+								visible={true}
+							/>
+						);
+					})
+				: null}
+			{props.selectionLabelVisible && props.pendingShiftPreviewEntry ? (
+				<SelectionLabel
+					tagName={props.pendingShiftPreviewEntry.tagName}
+					componentName={props.pendingShiftPreviewEntry.componentName}
+					selectionBounds={props.pendingShiftPreviewEntry.bounds}
+					mouseX={props.pendingShiftPreviewEntry.mouseX}
+					visible={true}
+				/>
+			) : null}
+			{props.selectionLabelVisible && props.selectionBounds && frozenAccessors.length === 0 ? (
 				<SelectionLabel
 					tagName={props.selectionTagName}
 					componentName={props.selectionComponentName}
@@ -79,44 +70,39 @@ export const ReactGrabRenderer: Component<ReactGrabRendererProps> = (props) => {
 					discardPrompt={props.discardPrompt}
 					onOpen={props.onOpenSelectionFile}
 				/>
-			</Show>
-			<For each={props.labelInstanceAccessors ?? []}>
-				{(instanceAccessor) => (
-					<Show when={instanceAccessor.read()}>
-						{(instance) => (
-							<SelectionLabel
-								tagName={instance().tagName}
-								componentName={instance().componentName}
-								elementsCount={instance().elementsCount}
-								selectionBounds={instance().bounds}
-								mouseX={instance().mouseX}
-								visible={true}
-								status={instance().status}
-								statusText={instance().statusText}
-								isPromptMode={instance().isPromptMode}
-								inputValue={instance().inputValue}
-								error={instance().errorMessage}
-								hideArrow={instance().hideArrow}
-								onShowContextMenu={(() => {
-									const currentInstance = instance();
-									const hasCompletedStatus =
-										currentInstance.status === 'copied' || currentInstance.status === 'fading';
-									if (!hasCompletedStatus || !isElementConnected(currentInstance.element)) {
-										return undefined;
-									}
-									return () => props.onShowContextMenuInstance?.(currentInstance.id);
-								})()}
-								onRetry={() => props.onRetryInstance?.(instance().id)}
-								onAcknowledgeError={() => props.onAcknowledgeErrorInstance?.(instance().id)}
-								onHoverChange={(isHovered) =>
-									props.onLabelInstanceHoverChange?.(instance().id, isHovered)
-								}
-							/>
-						)}
-					</Show>
-				)}
-			</For>
-			<Show when={props.toolbarVisible !== false}>
+			) : null}
+			{labelAccessors.map((instanceAccessor) => {
+				const instance = instanceAccessor.read();
+				if (!instance) return null;
+				const hasCompletedStatus = instance.status === 'copied' || instance.status === 'fading';
+				const showContextMenu =
+					hasCompletedStatus && isElementConnected(instance.element)
+						? () => props.onShowContextMenuInstance?.(instance.id)
+						: undefined;
+				return (
+					<SelectionLabel
+						tagName={instance.tagName}
+						componentName={instance.componentName}
+						elementsCount={instance.elementsCount}
+						selectionBounds={instance.bounds}
+						mouseX={instance.mouseX}
+						visible={true}
+						status={instance.status}
+						statusText={instance.statusText}
+						isPromptMode={instance.isPromptMode}
+						inputValue={instance.inputValue}
+						error={instance.errorMessage}
+						hideArrow={instance.hideArrow}
+						onShowContextMenu={showContextMenu}
+						onRetry={() => props.onRetryInstance?.(instance.id)}
+						onAcknowledgeError={() => props.onAcknowledgeErrorInstance?.(instance.id)}
+						onHoverChange={(isHovered) =>
+							props.onLabelInstanceHoverChange?.(instance.id, isHovered)
+						}
+					/>
+				);
+			})}
+			{props.toolbarVisible !== false ? (
 				<Toolbar
 					isActive={props.isActive}
 					isContextMenuOpen={props.contextMenuPosition !== null}
@@ -132,7 +118,7 @@ export const ReactGrabRenderer: Component<ReactGrabRendererProps> = (props) => {
 					onContainerRef={props.onToolbarRef}
 					onToggleToolbarMenu={props.onToggleToolbarMenu}
 				/>
-			</Show>
+			) : null}
 			<ContextMenu
 				position={props.contextMenuPosition ?? null}
 				selectionBounds={props.contextMenuBounds ?? null}

@@ -1,5 +1,3 @@
-import { onCleanup } from 'solid-js';
-
 interface AnimatedBoundsFollowerOptions {
 	hiddenOpacity?: string;
 	visibleOpacity?: string;
@@ -10,6 +8,7 @@ interface AnimatedBoundsFollowerController {
 	followerRef: (followerElement: HTMLElement) => void;
 	followElement: (targetElement: HTMLElement | undefined) => void;
 	hideFollower: () => void;
+	dispose: () => void;
 }
 
 interface MenuHighlightOptions {
@@ -23,6 +22,7 @@ interface MenuHighlightController {
 	highlightRef: (highlightElement: HTMLElement) => void;
 	updateHighlight: (targetElement: HTMLElement | undefined) => void;
 	clearHighlight: () => void;
+	dispose: () => void;
 }
 
 const DEFAULT_HIDDEN_OPACITY = '0';
@@ -71,7 +71,6 @@ const createAnimatedBoundsFollower = ({
 			: new ResizeObserver(() => {
 					if (currentTarget) applyBounds(currentTarget);
 				});
-	onCleanup(() => resizeObserver?.disconnect());
 
 	const hideFollower = (): void => {
 		currentTarget = undefined;
@@ -101,11 +100,16 @@ const createAnimatedBoundsFollower = ({
 		followerElement = followerNode;
 	};
 
+	const dispose = (): void => {
+		resizeObserver?.disconnect();
+	};
+
 	return {
 		containerRef: setContainerRef,
 		followerRef: setFollowerRef,
 		followElement,
 		hideFollower,
+		dispose,
 	};
 };
 
@@ -161,6 +165,7 @@ export const createMenuHighlight = (
 		followerRef: baseFollowerRef,
 		followElement: baseFollowElement,
 		hideFollower: clearHighlight,
+		dispose,
 	} = createAnimatedBoundsFollower();
 
 	const highlightRef = (highlightElement: HTMLElement): void => {
@@ -181,5 +186,6 @@ export const createMenuHighlight = (
 		highlightRef,
 		updateHighlight,
 		clearHighlight,
+		dispose,
 	};
 };

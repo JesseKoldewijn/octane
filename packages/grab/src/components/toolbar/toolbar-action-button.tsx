@@ -1,4 +1,5 @@
-import { Show, type Component, type JSX } from 'solid-js';
+/** @jsxImportSource octane */
+import type { OctaneNode } from 'octane';
 import { Tooltip } from '../tooltip.jsx';
 
 interface ToolbarActionButtonProps {
@@ -8,18 +9,18 @@ interface ToolbarActionButtonProps {
 	isToggle?: boolean;
 	class?: string;
 	wrapperClass?: string;
-	ref?: (element: HTMLButtonElement) => void;
+	ref?: (element: HTMLButtonElement | null) => void;
 	onClick?: (event: MouseEvent) => void;
 	onContextMenu?: (event: MouseEvent) => void;
 	onMouseEnter?: (event: MouseEvent) => void;
 	onMouseLeave?: (event: MouseEvent) => void;
-	icon: JSX.Element;
+	icon: OctaneNode;
 	tooltip?: string;
 	tooltipVisible?: boolean;
 	tooltipPosition?: 'top' | 'bottom' | 'left' | 'right';
 }
 
-export const ToolbarActionButton: Component<ToolbarActionButtonProps> = (props) => (
+export const ToolbarActionButton = (props: ToolbarActionButtonProps) => (
 	<div class={props.wrapperClass}>
 		<button
 			ref={props.ref}
@@ -31,20 +32,18 @@ export const ToolbarActionButton: Component<ToolbarActionButtonProps> = (props) 
 			type="button"
 			class={props.class}
 			onClick={props.onClick}
-			on:contextmenu={(event) => props.onContextMenu?.(event)}
+			onContextMenu={(event) => props.onContextMenu?.(event)}
 			onMouseEnter={props.onMouseEnter}
 			onMouseLeave={props.onMouseLeave}
 		>
 			{props.icon}
 		</button>
-		<Show when={props.tooltip}>
-			{(tooltip) => (
-				<Tooltip
-					visible={Boolean(props.tooltipVisible)}
-					position={props.tooltipPosition ?? 'top'}
-					textContent={tooltip()}
-				/>
-			)}
-		</Show>
+		{props.tooltip && (
+			<Tooltip
+				visible={Boolean(props.tooltipVisible)}
+				position={props.tooltipPosition ?? 'top'}
+				textContent={props.tooltip}
+			/>
+		)}
 	</div>
 );

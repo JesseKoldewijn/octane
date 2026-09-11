@@ -38,23 +38,6 @@ import {
 // present; fully offline for a committed pristine tree.
 ensureMaterializedUpstream(import.meta.dirname);
 
-const requireGrab = createRequire(resolve(import.meta.dirname, 'packages/grab/package.json'));
-const GRAB_SOLID_ROOT = dirname(requireGrab.resolve('solid-js/package.json'));
-const GRAB_SOLID_PROD_ALIASES = [
-	{
-		find: /^solid-js$/,
-		replacement: resolve(GRAB_SOLID_ROOT, 'dist/solid.js'),
-	},
-	{
-		find: /^solid-js\/store$/,
-		replacement: resolve(GRAB_SOLID_ROOT, 'store/dist/store.js'),
-	},
-	{
-		find: /^solid-js\/web$/,
-		replacement: resolve(GRAB_SOLID_ROOT, 'web/dist/web.js'),
-	},
-];
-
 const requireReactTextareaAutosize = createRequire(
 	resolve(import.meta.dirname, 'packages/textarea-autosize/package.json'),
 );
@@ -5696,7 +5679,15 @@ export default defineConfig({
 				plugins: [octane()],
 				resolve: {
 					alias: [
-						...GRAB_SOLID_PROD_ALIASES,
+						{
+							// Adapted upstream suites still import solid-js; map to grab's local shim.
+							find: /^solid-js$/,
+							replacement: resolve(import.meta.dirname, 'packages/grab/src/reactivity/index.ts'),
+						},
+						{
+							find: /^solid-js\/store$/,
+							replacement: resolve(import.meta.dirname, 'packages/grab/src/reactivity/index.ts'),
+						},
 						{
 							find: /^@octanejs\/grab$/,
 							replacement: resolve(import.meta.dirname, 'packages/grab/src/index.ts'),
@@ -5714,7 +5705,6 @@ export default defineConfig({
 							replacement: resolve(import.meta.dirname, 'packages/octane/src/inspect.ts'),
 						},
 					],
-					// Prefer production solid builds; Vitest still injects `development` otherwise.
 					conditions: ['browser', 'import', 'module', 'default'],
 				},
 			},

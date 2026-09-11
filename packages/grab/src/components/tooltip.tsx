@@ -1,5 +1,5 @@
-import { createSignal, createEffect, on, onCleanup, Show } from 'solid-js';
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
+import { useEffect, useRef, useState } from 'octane';
 import { cn } from '../utils/cn.js';
 import { TOOLTIP_DELAY_MS, TOOLTIP_GRACE_PERIOD_MS, Z_INDEX_OVERLAY } from '../constants.js';
 
@@ -15,61 +15,61 @@ interface TooltipProps {
 	textContent: string;
 }
 
-export const Tooltip: Component<TooltipProps> = (props) => {
-	const [delayedVisible, setDelayedVisible] = createSignal(false);
-	const [shouldAnimate, setShouldAnimate] = createSignal(true);
-	let delayTimeoutId: ReturnType<typeof setTimeout> | undefined;
+export const Tooltip = (props: TooltipProps) => {
+	const [, setDelayedVisible, delayedVisible] = useState(false);
+	const [, setShouldAnimate, shouldAnimate] = useState(true);
+	const delayTimeoutId = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-	createEffect(
-		on(
-			() => props.visible,
-			(isVisible) => {
-				if (delayTimeoutId !== undefined) {
-					clearTimeout(delayTimeoutId);
-					delayTimeoutId = undefined;
-				}
-
-				if (isVisible) {
-					// Reopening within the grace period skips the delay and the fade so
-					// moving between adjacent buttons reads as one continuous tooltip.
-					if (wasTooltipRecentlyVisible()) {
-						setShouldAnimate(false);
-						setDelayedVisible(true);
-					} else {
-						setShouldAnimate(true);
-						delayTimeoutId = setTimeout(() => {
-							setDelayedVisible(true);
-						}, TOOLTIP_DELAY_MS);
-					}
-				} else {
-					if (delayedVisible()) {
-						lastCloseTimestamp = Date.now();
-					}
-					setDelayedVisible(false);
-				}
-			},
-		),
-	);
-
-	onCleanup(() => {
-		if (delayTimeoutId !== undefined) {
-			clearTimeout(delayTimeoutId);
+	// Mirrors the former `createEffect(on(() => props.visible, ...))`: run on
+	// mount and whenever visibility flips.
+	useEffect(() => {
+		const isVisible = props.visible;
+		if (delayTimeoutId.current !== undefined) {
+			clearTimeout(delayTimeoutId.current);
+			delayTimeoutId.current = undefined;
 		}
-		if (delayedVisible()) {
-			lastCloseTimestamp = Date.now();
-		}
-	});
 
-	const positionStyle = (): Record<string, string> => {
+		if (isVisible) {
+			// Reopening within the grace period skips the delay and the fade so
+			// moving between adjacent buttons reads as one continuous tooltip.
+			if (wasTooltipRecentlyVisible()) {
+				setShouldAnimate(false);
+				setDelayedVisible(true);
+			} else {
+				setShouldAnimate(true);
+				delayTimeoutId.current = setTimeout(() => {
+					setDelayedVisible(true);
+				}, TOOLTIP_DELAY_MS);
+			}
+		} else {
+			if (delayedVisible()) {
+				lastCloseTimestamp = Date.now();
+			}
+			setDelayedVisible(false);
+		}
+	}, [props.visible]);
+
+	useEffect(() => {
+		return () => {
+			if (delayTimeoutId.current !== undefined) {
+				clearTimeout(delayTimeoutId.current);
+			}
+			if (delayedVisible()) {
+				lastCloseTimestamp = Date.now();
+			}
+		};
+	}, []);
+
+	const positionStyle = (): Record<string, string | number> => {
 		const isHorizontal = props.position === 'top' || props.position === 'bottom';
 		if (isHorizontal) {
-			return { left: '50%', translate: '-50%', 'z-index': `${Z_INDEX_OVERLAY}` };
+			return { left: '50%', translate: '-50%', zIndex: Z_INDEX_OVERLAY };
 		}
-		return { top: '50%', translate: '0 -50%', 'z-index': `${Z_INDEX_OVERLAY}` };
+		return { top: '50%', translate: '0 -50%', zIndex: Z_INDEX_OVERLAY };
 	};
 
 	return (
-		<Show when={delayedVisible()}>
+		delayedVisible() && (
 			<div
 				class={cn(
 					'absolute whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-sans font-medium leading-4 pointer-events-none',
@@ -81,8 +81,9 @@ export const Tooltip: Component<TooltipProps> = (props) => {
 					shouldAnimate() && 'animate-tooltip-fade-in',
 				)}
 				style={positionStyle()}
-				textContent={props.textContent}
-			/>
-		</Show>
+			>
+				{props.textContent as string}
+			</div>
+		)
 	);
 };

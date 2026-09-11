@@ -1,4 +1,5 @@
-import type { Component, JSX } from 'solid-js';
+/** @jsxImportSource octane */
+import type { OctaneNode } from 'octane';
 import { cn } from '../../utils/cn.js';
 import { isHorizontalEdge } from '../../utils/toolbar-position.js';
 import { IconChevron } from '../icons/icon-chevron.jsx';
@@ -14,11 +15,11 @@ interface ToolbarContentProps {
 	onCollapsePointerDown?: (event: PointerEvent) => void;
 	onCollapsePointerUp?: (event: PointerEvent) => void;
 	onCollapsePointerLeave?: (event: PointerEvent) => void;
-	actionButtons?: JSX.Element;
+	actionButtons?: OctaneNode;
 	transformOrigin?: string;
 }
 
-export const ToolbarContent: Component<ToolbarContentProps> = (props) => {
+export const ToolbarContent = (props: ToolbarContentProps) => {
 	const edge = () => props.snapEdge ?? 'bottom';
 	const isVertical = () => !isHorizontalEdge(edge());
 
@@ -88,7 +89,7 @@ export const ToolbarContent: Component<ToolbarContentProps> = (props) => {
 				collapsedEdgeClasses(),
 				props.isShaking && (isVertical() ? 'animate-shake-vertical' : 'animate-shake'),
 			)}
-			style={{ 'transform-origin': props.transformOrigin, transform: pressSquishTransform() }}
+			style={{ transformOrigin: props.transformOrigin, transform: pressSquishTransform() }}
 			onAnimationEnd={props.onAnimationEnd}
 			onClick={props.onPanelClick}
 		>
@@ -132,7 +133,7 @@ export const ToolbarContent: Component<ToolbarContentProps> = (props) => {
 				type="button"
 				class="group contain-layout shrink-0 flex items-center justify-center cursor-pointer interactive-scale a11y-hitbox"
 				onClick={props.onCollapseClick}
-				on:pointerdown={props.onCollapsePointerDown}
+				onPointerDown={props.onCollapsePointerDown}
 				onPointerUp={props.onCollapsePointerUp}
 				onPointerLeave={props.onCollapsePointerLeave}
 				onPointerCancel={props.onCollapsePointerLeave}

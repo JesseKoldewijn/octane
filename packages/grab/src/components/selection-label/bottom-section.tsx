@@ -1,7 +1,7 @@
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
 import type { BottomSectionProps } from '../../types.js';
 
-export const BottomSection: Component<BottomSectionProps> = (props) => (
+export const BottomSection = (props: BottomSectionProps) => (
 	<div class="[font-synthesis:none] contain-layout shrink-0 flex flex-col items-start px-2 py-1.5 w-auto h-fit self-stretch [border-top-width:0.5px] border-t-[var(--rg-border-subtle)] antialiased">
 		{props.children}
 	</div>

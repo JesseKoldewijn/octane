@@ -1,9 +1,9 @@
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
 import type { ArrowProps } from '../../types.js';
 import { PANEL_BACKGROUND, ARROW_TIP_RADIUS_PX, ARROW_PANEL_OVERLAP_PX } from '../../constants.js';
 import { getArrowSize } from '../../utils/get-arrow-size.js';
 
-export const Arrow: Component<ArrowProps> = (props) => {
+export const Arrow = (props: ArrowProps) => {
 	const isBottom = () => props.position === 'bottom';
 	const arrowSize = () => getArrowSize(props.labelWidth ?? 0);
 	const arrowWidth = () => arrowSize() * 2;

@@ -1,11 +1,12 @@
-import type { Component, JSX } from 'solid-js';
+/** @jsxImportSource octane */
+import type { OctaneNode } from 'octane';
 import { MenuContext, type MenuStore } from './menu-context.js';
 
 interface MenuProviderProps {
 	store: MenuStore;
-	children: JSX.Element;
+	children: OctaneNode;
 }
 
-export const MenuProvider: Component<MenuProviderProps> = (props) => (
+export const MenuProvider = (props: MenuProviderProps) => (
 	<MenuContext.Provider value={props.store}>{props.children}</MenuContext.Provider>
 );

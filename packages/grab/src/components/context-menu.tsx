@@ -1,14 +1,5 @@
-import {
-	createEffect,
-	createMemo,
-	createSignal,
-	For,
-	on,
-	onCleanup,
-	onMount,
-	Show,
-	type Component,
-} from 'solid-js';
+/** @jsxImportSource octane */
+import { useEffect, useMemo, useRef, useState } from 'octane';
 import type {
 	Position,
 	OverlayBounds,
@@ -57,39 +48,48 @@ interface ContextMenuRow {
 	shortcutModifier?: boolean;
 }
 
-export const ContextMenu: Component<ContextMenuProps> = (props) => {
-	let containerRef: HTMLDivElement | undefined;
-	let menuContainerRef: HTMLDivElement | undefined;
-	let previouslyFocusedElement: Element | null = null;
+export const ContextMenu = (props: ContextMenuProps) => {
+	const containerRef = useRef<HTMLDivElement | null>(null);
+	const menuContainerRef = useRef<HTMLDivElement | null>(null);
+	const previouslyFocusedElement = useRef<Element | null>(null);
+	// Octane props are per-render objects, unlike Solid's live getters, so keep
+	// the latest props reachable from the mount-once keyboard/dismiss listeners.
+	const propsRef = useRef(props);
+	propsRef.current = props;
+
 	// The menu store owns the active-row state and its visible highlight. We
 	// never call .focus() on the row itself: that would steal DOM focus from
 	// whatever the host page had focused (form inputs, comboboxes,
 	// focus-trapped modals), dispatch blur/focus events at the wrong time, and
 	// fight focus traps. Keyboard navigation is driven by a window-level
 	// keydown listener instead, which fires regardless of where DOM focus is.
-	const menuStore = createMenuStore({
-		keyboardNavigation: true,
-		highlight: {
-			bottomCornerRadiusPx: MENU_PANEL_CORNER_RADIUS_PX,
-			cornerShape: MENU_HIGHLIGHT_CORNER_SHAPE,
-		},
+	const menuStore = useMemo(
+		() =>
+			createMenuStore({
+				keyboardNavigation: true,
+				highlight: {
+					bottomCornerRadiusPx: MENU_PANEL_CORNER_RADIUS_PX,
+					cornerShape: MENU_HIGHLIGHT_CORNER_SHAPE,
+				},
+			}),
+		[],
+	);
+	useEffect(() => () => menuStore.dispose(), []);
+
+	const [, setMeasuredWidth, measuredWidth] = useState(0);
+	const [, setMeasuredHeight, measuredHeight] = useState(0);
+
+	const isVisible = () => props.position !== null;
+
+	const tagDisplayResult = getTagDisplay({
+		tagName: props.tagName,
+		componentName: props.componentName,
 	});
 
-	const [measuredWidth, setMeasuredWidth] = createSignal(0);
-	const [measuredHeight, setMeasuredHeight] = createSignal(0);
-
-	const isVisible = createMemo(() => props.position !== null);
-
-	const tagDisplayResult = createMemo(() =>
-		getTagDisplay({
-			tagName: props.tagName,
-			componentName: props.componentName,
-		}),
-	);
-
 	const measureContainer = () => {
-		if (containerRef) {
-			const containerBounds = containerRef.getBoundingClientRect();
+		const container = containerRef.current;
+		if (container) {
+			const containerBounds = container.getBoundingClientRect();
 			setMeasuredWidth(containerBounds.width);
 			setMeasuredHeight(containerBounds.height);
 		}
@@ -98,13 +98,13 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
 	// Elements that were just mounted may not have been laid out yet, so without
 	// deferring to the next frame the measured dimensions are zero and the menu
 	// would flash at the wrong position before jumping to its correct spot.
-	createEffect(() => {
+	useEffect(() => {
 		if (isVisible()) {
 			nativeRequestAnimationFrame(measureContainer);
 		}
-	});
+	}, [isVisible()]);
 
-	const computedPosition = createMemo(() => {
+	const computeMenuPosition = () => {
 		const bounds = props.selectionBounds;
 		const clickPosition = props.position;
 		const labelWidth = measuredWidth();
@@ -148,13 +148,13 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
 		}
 
 		return { left: positionLeft, top: positionTop, arrowLeft, arrowPosition };
-	});
+	};
 
-	const menuItems = createMemo<ContextMenuRow[]>(() => {
-		const pluginActions = props.actions ?? [];
+	const computedPosition = computeMenuPosition();
+
+	const menuItems: ContextMenuRow[] = (props.actions ?? []).map((action) => {
 		const context = props.actionContext;
-
-		return pluginActions.map((action) => ({
+		return {
 			id: action.id,
 			label: action.label,
 			action: () => {
@@ -165,7 +165,7 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
 			enabled: resolveActionEnabled(action, context),
 			shortcut: action.shortcut,
 			shortcutModifier: action.shortcutModifier,
-		}));
+		};
 	});
 
 	// Single, predictable focus move keyed strictly on visibility (not on
@@ -174,47 +174,48 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
 	// restore focus to whatever the host page had focused — but only if
 	// nothing else has already claimed focus (e.g. the prompt-mode textarea
 	// that an action opened), so we do not yank it back.
-	createEffect(
-		on(isVisible, (visible) => {
-			if (visible) {
-				// document.activeElement returns the shadow host when focus is
-				// inside the shadow root, so use the host's shadowRoot.activeElement
-				// to detect a focused element that already lives in our own DOM
-				// tree; we should not capture our own host as "previous".
-				const hostShadowRoot = containerRef?.getRootNode();
-				const focusInsideHost =
-					hostShadowRoot instanceof ShadowRoot ? hostShadowRoot.activeElement : null;
-				const pageActiveElement = document.activeElement;
-				const wasFocusedOnPage =
-					pageActiveElement instanceof HTMLElement &&
-					focusInsideHost === null &&
-					!(containerRef instanceof Element && containerRef.contains(pageActiveElement));
-				previouslyFocusedElement = wasFocusedOnPage ? pageActiveElement : null;
-				menuContainerRef?.focus({ preventScroll: true });
-				return;
-			}
-			menuStore.setActiveItem(null);
-			const restoreTarget = previouslyFocusedElement;
-			previouslyFocusedElement = null;
-			if (!(restoreTarget instanceof HTMLElement) || !document.contains(restoreTarget)) return;
-			// Defer to the next frame so an action-triggered focus move (e.g.
-			// the prompt textarea focusing itself via queueMicrotask) lands
-			// first. If something other than the body has focus by then, the
-			// action's side effect deserves to keep it.
-			nativeRequestAnimationFrame(() => {
-				const currentActive = document.activeElement;
-				const isOrphanedFocus = currentActive === null || currentActive === document.body;
-				if (!isOrphanedFocus) return;
-				restoreTarget.focus({ preventScroll: true });
-			});
-		}),
-	);
+	useEffect(() => {
+		if (isVisible()) {
+			// document.activeElement returns the shadow host when focus is
+			// inside the shadow root, so use the host's shadowRoot.activeElement
+			// to detect a focused element that already lives in our own DOM
+			// tree; we should not capture our own host as "previous".
+			const hostShadowRoot = containerRef.current?.getRootNode();
+			const focusInsideHost =
+				hostShadowRoot instanceof ShadowRoot ? hostShadowRoot.activeElement : null;
+			const pageActiveElement = document.activeElement;
+			const wasFocusedOnPage =
+				pageActiveElement instanceof HTMLElement &&
+				focusInsideHost === null &&
+				!(
+					containerRef.current instanceof Element &&
+					containerRef.current.contains(pageActiveElement)
+				);
+			previouslyFocusedElement.current = wasFocusedOnPage ? pageActiveElement : null;
+			menuContainerRef.current?.focus({ preventScroll: true });
+			return;
+		}
+		menuStore.setActiveItem(null);
+		const restoreTarget = previouslyFocusedElement.current;
+		previouslyFocusedElement.current = null;
+		if (!(restoreTarget instanceof HTMLElement) || !document.contains(restoreTarget)) return;
+		// Defer to the next frame so an action-triggered focus move (e.g.
+		// the prompt textarea focusing itself via queueMicrotask) lands
+		// first. If something other than the body has focus by then, the
+		// action's side effect deserves to keep it.
+		nativeRequestAnimationFrame(() => {
+			const currentActive = document.activeElement;
+			const isOrphanedFocus = currentActive === null || currentActive === document.body;
+			if (!isOrphanedFocus) return;
+			restoreTarget.focus({ preventScroll: true });
+		});
+	}, [isVisible()]);
 
-	onMount(() => {
+	useEffect(() => {
 		measureContainer();
 
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (!isVisible()) return;
+			if (propsRef.current.position === null) return;
 
 			const isArrowDown = event.key === 'ArrowDown';
 			const isArrowUp = event.key === 'ArrowUp';
@@ -238,15 +239,15 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
 				return;
 			}
 
-			const pluginActions = props.actions ?? [];
-			const context = props.actionContext;
+			const pluginActions = propsRef.current.actions ?? [];
+			const context = propsRef.current.actionContext;
 
 			const runActionIfAllowed = (action: ContextMenuAction) => {
 				if (!context) return;
 				if (!executeContextMenuAction(action, context)) return;
 				event.preventDefault();
 				event.stopPropagation();
-				props.onHide();
+				propsRef.current.onHide();
 			};
 
 			// A highlighted row absorbs Enter: run its onSelect (which closes the
@@ -271,37 +272,37 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
 		};
 
 		const unregisterOverlayDismiss = registerOverlayDismiss({
-			isOpen: isVisible,
-			onDismiss: props.onDismiss,
+			isOpen: () => propsRef.current.position !== null,
+			onDismiss: () => propsRef.current.onDismiss(),
 			shouldIgnoreRightClick: true,
 		});
 		const gatedHandleKeyDown = ignoreRealInput(handleKeyDown);
 		window.addEventListener('keydown', gatedHandleKeyDown, { capture: true });
 
-		onCleanup(() => {
+		return () => {
 			unregisterOverlayDismiss();
 			window.removeEventListener('keydown', gatedHandleKeyDown, { capture: true });
-		});
-	});
+		};
+	}, []);
 
-	const accessibleMenuLabel = createMemo(() => {
-		const { tagName, componentName } = tagDisplayResult();
+	const accessibleMenuLabel = () => {
+		const { tagName, componentName } = tagDisplayResult;
 		const displayName = componentName ? `${componentName}.${tagName}` : tagName;
 		return `Actions for ${displayName}`;
-	});
+	};
 
 	return (
-		<Show when={isVisible()}>
+		isVisible() && (
 			<div
 				ref={containerRef}
 				data-react-grab-ignore-events
 				data-react-grab-context-menu
 				class="fixed font-sans text-[13px] antialiased [filter:var(--rg-drop-shadow)] select-none"
 				style={{
-					top: `${computedPosition().top}px`,
-					left: `${computedPosition().left}px`,
-					'z-index': `${Z_INDEX_OVERLAY}`,
-					'pointer-events': 'auto',
+					top: `${computedPosition.top}px`,
+					left: `${computedPosition.left}px`,
+					zIndex: Z_INDEX_OVERLAY,
+					pointerEvents: 'auto',
 				}}
 				onPointerDown={suppressMenuEvent}
 				onMouseDown={suppressMenuEvent}
@@ -309,16 +310,16 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
 				onContextMenu={suppressMenuEvent}
 			>
 				<Arrow
-					position={computedPosition().arrowPosition}
+					position={computedPosition.arrowPosition}
 					leftPercent={0}
-					leftOffsetPx={computedPosition().arrowLeft}
+					leftOffsetPx={computedPosition.arrowLeft}
 				/>
 
 				<Menu.Panel class="justify-center items-start min-w-[100px]">
 					<div class="contain-layout shrink-0 flex items-center gap-1 pt-1.5 pb-1 w-fit h-fit px-2">
 						<TagBadge
-							tagName={tagDisplayResult().tagName}
-							componentName={tagDisplayResult().componentName}
+							tagName={tagDisplayResult.tagName}
+							componentName={tagDisplayResult.componentName}
 							isClickable={props.hasFilePath}
 							onClick={(event) => {
 								event.stopPropagation();
@@ -335,35 +336,34 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
 					<BottomSection>
 						<Menu.Provider store={menuStore}>
 							<Menu.List
-								ref={(element) => (menuContainerRef = element)}
+								ref={(element) => {
+									menuContainerRef.current = element;
+								}}
 								label={accessibleMenuLabel()}
 								class="w-[calc(100%+16px)] -mx-2 -my-1.5 outline-none"
 							>
-								<For each={menuItems()}>
-									{(item) => (
-										<Menu.Item
-											value={item.id}
-											dataId={item.label.toLowerCase()}
-											disabled={!item.enabled}
-											onSelect={() => {
-												item.action();
-												props.onHide();
-											}}
-										>
-											<Menu.Label class="text-[var(--rg-text-primary)]" textContent={item.label} />
-											<Show when={item.shortcut}>
-												{(shortcut) => (
-													<Menu.Shortcut shortcut={shortcut()} modifier={item.shortcutModifier} />
-												)}
-											</Show>
-										</Menu.Item>
-									)}
-								</For>
+								{menuItems.map((item) => (
+									<Menu.Item
+										key={item.id}
+										value={item.id}
+										dataId={item.label.toLowerCase()}
+										disabled={!item.enabled}
+										onSelect={() => {
+											item.action();
+											props.onHide();
+										}}
+									>
+										<Menu.Label class="text-[var(--rg-text-primary)]" textContent={item.label} />
+										{item.shortcut && (
+											<Menu.Shortcut shortcut={item.shortcut} modifier={item.shortcutModifier} />
+										)}
+									</Menu.Item>
+								))}
 							</Menu.List>
 						</Menu.Provider>
 					</BottomSection>
 				</Menu.Panel>
 			</div>
-		</Show>
+		)
 	);
 };

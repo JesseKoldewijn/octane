@@ -1,21 +1,22 @@
-import type { Component } from 'solid-js';
+/** @jsxImportSource octane */
 
-interface IconCheckProps {
+interface IconCheckProps extends Record<string, unknown> {
 	size?: number;
 	class?: string;
 }
 
-export const IconCheck: Component<IconCheckProps> = (props) => {
-	const size = () => props.size ?? 14;
+export const IconCheck = (props: IconCheckProps) => {
+	const { size = 14, class: className, ...rest } = props;
 
 	return (
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
-			width={size()}
-			height={size()}
+			width={size}
+			height={size}
 			viewBox="0 0 24 24"
 			fill="currentColor"
-			class={props.class}
+			class={className}
+			{...rest}
 		>
 			<path
 				fill-rule="evenodd"

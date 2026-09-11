@@ -9,7 +9,7 @@
     "skipLibCheck": false,
     "noEmit": true,
     "jsx": "preserve",
-    "jsxImportSource": "solid-js",
+    "jsxImportSource": "octane",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "paths": {

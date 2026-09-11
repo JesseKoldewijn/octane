@@ -35236,6 +35236,16 @@ export interface RootOptions {
 	 * recovery stays quiet to keep the report channel comparable.
 	 */
 	onRecoverableError?: (error: unknown) => void;
+	/**
+	 * When false, this root is NOT registered with the inspect/devtools subsystem.
+	 * Host nodes inside the root will not be discoverable via
+	 * `getOwnerFromHostInstance` or appear in the inspect root set. Useful for
+	 * tool overlays (e.g. `@octanejs/grab`) that mount their own root alongside
+	 * the application and must stay invisible to instrumentation.
+	 *
+	 * Defaults to `true`.
+	 */
+	inspect?: boolean;
 }
 
 /**
@@ -35808,13 +35818,17 @@ function makeRoot(
 			registerRootDisposer(rootBlock);
 			__inspectSetNameResolver(inspectDevtoolsName);
 			__inspectSetChildWalker(inspectDevtoolsChildScopes);
-			__inspectRegisterRoot(rootBlock as any);
+			if (errorOptions?.inspect !== false) {
+				__inspectRegisterRoot(rootBlock as any);
+			}
 			if (typeof __OCTANE_PROFILE_ENABLED__ !== 'undefined' && __OCTANE_PROFILE_ENABLED__) {
 				__devtoolsSetNameResolver(inspectDevtoolsName);
 				__devtoolsSetChildWalker(inspectDevtoolsChildScopes);
-				__devtoolsRegisterRoot(
-					rootBlock as unknown as import('./devtools-hook.js').DevtoolsScopeLike,
-				);
+				if (errorOptions?.inspect !== false) {
+					__devtoolsRegisterRoot(
+						rootBlock as unknown as import('./devtools-hook.js').DevtoolsScopeLike,
+					);
+				}
 			}
 			currentBody = body;
 			currentKey = nextKey;
@@ -36160,11 +36174,17 @@ export function hydrateRoot(
 		__profileTrackComponent(rootBlock, body);
 	__inspectSetNameResolver(inspectDevtoolsName);
 	__inspectSetChildWalker(inspectDevtoolsChildScopes);
-	__inspectRegisterRoot(rootBlock as any);
+	if (rootOptions?.inspect !== false) {
+		__inspectRegisterRoot(rootBlock as any);
+	}
 	if (typeof __OCTANE_PROFILE_ENABLED__ !== 'undefined' && __OCTANE_PROFILE_ENABLED__) {
 		__devtoolsSetNameResolver(inspectDevtoolsName);
 		__devtoolsSetChildWalker(inspectDevtoolsChildScopes);
-		__devtoolsRegisterRoot(rootBlock as unknown as import('./devtools-hook.js').DevtoolsScopeLike);
+		if (rootOptions?.inspect !== false) {
+			__devtoolsRegisterRoot(
+				rootBlock as unknown as import('./devtools-hook.js').DevtoolsScopeLike,
+			);
+		}
 	}
 	const idState: RootIdState = {
 		prefix: rootOptions?.identifierPrefix ?? '',
