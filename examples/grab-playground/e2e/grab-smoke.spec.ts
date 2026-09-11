@@ -64,3 +64,66 @@ test('activates grab and mounts the overlay host', async ({ page }) => {
 		)
 		.toBe(true);
 });
+
+test('toolbar collapse chevron toggles without jumping sideways', async ({ page }) => {
+	await expect
+		.poll(async () =>
+			page.evaluate(() => {
+				const api = (window as Window & { __OCTANE_GRAB__?: { isActive?: () => boolean } })
+					.__OCTANE_GRAB__;
+				return Boolean(api?.isActive?.());
+			}),
+		)
+		.toBe(true);
+
+	const collapseButtonBox = async () =>
+		page.evaluate(() => {
+			const host = [...document.querySelectorAll('*')].find(
+				(node) => node.getAttribute?.('data-react-grab') != null,
+			);
+			const button = host?.shadowRoot?.querySelector('[data-react-grab-toolbar-collapse]');
+			const rect = button?.getBoundingClientRect();
+			if (!rect) return null;
+			return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+		});
+
+	const toolbarSnapshot = async () =>
+		page.evaluate(() => {
+			const host = [...document.querySelectorAll('*')].find(
+				(node) => node.getAttribute?.('data-react-grab') != null,
+			);
+			const button = host?.shadowRoot?.querySelector('[data-react-grab-toolbar-collapse]');
+			const toolbar = host?.shadowRoot?.querySelector('[data-react-grab-toolbar]');
+			const panel = host?.shadowRoot?.querySelector('[data-react-grab-toolbar-panel]');
+			const toolbarRect = toolbar?.getBoundingClientRect();
+			const panelRect = panel?.getBoundingClientRect();
+			return {
+				expanded: button?.getAttribute('aria-expanded'),
+				label: button?.getAttribute('aria-label'),
+				toolbarWidth: toolbarRect ? Math.round(toolbarRect.width) : 0,
+				panelWidth: panelRect ? Math.round(panelRect.width) : 0,
+			};
+		});
+
+	await expect.poll(async () => (await toolbarSnapshot())?.expanded).toBe('true');
+
+	const first = await collapseButtonBox();
+	expect(first).toBeTruthy();
+	await page.mouse.click(first!.x, first!.y);
+
+	await expect.poll(async () => (await toolbarSnapshot())?.expanded).toBe('false');
+	await expect.poll(async () => (await toolbarSnapshot())?.panelWidth ?? 999).toBeLessThan(40);
+	const collapsed = await toolbarSnapshot();
+	expect(collapsed?.label).toBe('Expand toolbar');
+
+	const second = await collapseButtonBox();
+	expect(second).toBeTruthy();
+	await page.mouse.click(second!.x, second!.y);
+
+	await expect.poll(async () => (await toolbarSnapshot())?.expanded).toBe('true');
+	await expect
+		.poll(async () => (await toolbarSnapshot())?.panelWidth ?? 0)
+		.toBeGreaterThan(collapsed!.panelWidth);
+	const expanded = await toolbarSnapshot();
+	expect(expanded?.label).toBe('Collapse toolbar');
+});

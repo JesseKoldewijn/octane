@@ -132,8 +132,18 @@ export const ToolbarContent = (props: ToolbarContentProps) => {
 				aria-expanded={!props.isCollapsed}
 				type="button"
 				class="group contain-layout shrink-0 flex items-center justify-center cursor-pointer interactive-scale a11y-hitbox"
-				onClick={props.onCollapseClick}
-				onPointerDown={props.onCollapsePointerDown}
+				onClick={(event) => {
+					// The chevron sits inside the panel. Without this, the panel's
+					// onClick sees the post-collapse `isCollapsed` getter and
+					// immediately expands again — looking like a sideways jump.
+					event.stopPropagation();
+					props.onCollapseClick?.(event);
+				}}
+				onPointerDown={(event) => {
+					// Keep chevron presses from starting a toolbar drag.
+					event.stopPropagation();
+					props.onCollapsePointerDown?.(event);
+				}}
 				onPointerUp={props.onCollapsePointerUp}
 				onPointerLeave={props.onCollapsePointerLeave}
 				onPointerCancel={props.onCollapsePointerLeave}
