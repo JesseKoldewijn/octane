@@ -107,7 +107,7 @@
         {
           "path": "packages/syntax-highlighter/scripts/generate-adapted-tests.mjs",
           "role": "support",
-          "sha256": "3734fab41248ac52126a2fdb9b1a8ed497955194da9822dd192dcab7f33475f8"
+          "sha256": "82d1477644e5a1f9197aca49341310711cdea9a7e486b04218f98d0da744b480"
         },
         {
           "path": "packages/syntax-highlighter/scripts/generate-parity-audit.mjs",
@@ -227,7 +227,7 @@
         {
           "path": "packages/syntax-highlighter/tests/adapted/light-async.test.ts",
           "role": "support",
-          "sha256": "b0ed2195f53bc9c52af9445eee85145b4ceeea2bf5d0877d86d038532580730b"
+          "sha256": "fc842f503b4884c5e4c87edf96940059116a5bddd8423d22e1ef8e6703c1d300"
         },
         {
           "path": "packages/syntax-highlighter/tests/adapted/line-numbers.test.ts",
