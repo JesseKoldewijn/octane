@@ -2,4 +2,4 @@
 '@octanejs/three': patch
 ---
 
-Type `createThreeTestRenderer` camera options as perspective/orthographic cameras so typecheck passes against current `@types/three`.
+Align the test renderer's camera option with the root camera configuration type so constructed and declarative cameras remain compatible with current Three declarations.
