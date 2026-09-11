@@ -118,9 +118,6 @@ test('SyntaxHighlighter renders text while language loads', async () => {
 	const loadLanguage = vi
 		.spyOn(SyntaxHighlighter, 'loadLanguage')
 		.mockImplementation(() => new Promise(() => {}));
-	// Pending languages fall through to highlightAuto. Sibling tests in this file
-	// register javascript/fortran on the shared lowlight core, so auto-detect
-	// would otherwise tokenize this fortran-looking sample and flake the snap.
 	const highlightAuto = vi
 		.spyOn(SyntaxHighlighter.astGenerator, 'highlightAuto')
 		.mockImplementation(() => ({ language: null, value: [] }));
