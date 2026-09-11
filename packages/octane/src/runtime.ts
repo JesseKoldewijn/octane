@@ -106,6 +106,7 @@ import {
 	__inspectSetChildWalker,
 	__inspectSetResumeFlush,
 	isInspectUpdatesPaused,
+	isUnderInstrumentedInspectRoot,
 } from './inspect.js';
 import type {
 	HydrateProps,
@@ -4555,9 +4556,10 @@ function scheduleRender(block: Block): void {
 	block.pendingDeferred = deferred;
 	QUEUE.push(block);
 	if (syncFlush) return;
-	// Grab/inspect freeze: keep the block queued but do not schedule a drain
-	// until pauseUpdates()'s resume runs (see octane/inspect).
-	if (isInspectUpdatesPaused()) return;
+	// Grab/inspect freeze: keep instrumented-root work queued without draining
+	// until pauseUpdates()'s resume runs. inspect:false overlay roots still
+	// schedule so tool UIs stay live (see octane/inspect).
+	if (isInspectUpdatesPaused() && isUnderInstrumentedInspectRoot(block)) return;
 	if (!scheduled) {
 		scheduled = true;
 		queueMicrotask(flush);
@@ -4569,6 +4571,56 @@ __inspectSetResumeFlush(() => {
 	scheduled = true;
 	queueMicrotask(flush);
 });
+
+/**
+ * While `pauseUpdates()` is held, drain only work that belongs to
+ * `inspect: false` roots (tool overlays). Instrumented application updates stay
+ * in QUEUE until resume. Effect/ref queues from the overlay's sync first mount
+ * also need this path — they are armed via `queueMicrotask(flush)` and would
+ * otherwise be dropped by the pause early-return forever.
+ */
+function flushWhileInspectPaused(): void {
+	const held: Block[] = [];
+	let write = 0;
+	for (let i = 0; i < QUEUE.length; i++) {
+		const block = QUEUE[i]!;
+		if (isUnderInstrumentedInspectRoot(block)) {
+			held.push(block);
+		} else {
+			QUEUE[write++] = block;
+		}
+	}
+	QUEUE.length = write;
+
+	try {
+		if (inFlush) {
+			if ((QUEUE.length > 0 || ROOT_RENDER_TRANSACTIONS.length > 0) && !scheduled) {
+				scheduled = true;
+				queueMicrotask(flush);
+			}
+			return;
+		}
+		if (
+			!hasPendingWork() &&
+			refDetachQueue.length === 0 &&
+			refAttachQueue.length === 0 &&
+			activeFragments.size === 0 &&
+			FLUSHED_TRANSITION_UPDATES.length === 0 &&
+			VIEW_TRANSITION_DRIVER === null
+		) {
+			return;
+		}
+		try {
+			if (VIEW_TRANSITION_DRIVER?.routeFlush() === true) return;
+			flushWork();
+		} catch (error) {
+			if (actScopeDepth === 0) throw error;
+			(actErrors ??= []).push(error);
+		}
+	} finally {
+		for (let i = 0; i < held.length; i++) QUEUE.push(held[i]!);
+	}
+}
 
 // Monotonic id per drainQueue pass, paired with Block.drainStamp/drainRenders
 // for the render-phase-update loop guard. 25 matches React's cap.
@@ -4884,9 +4936,13 @@ function drainQueue(): { err: any } | null {
 
 function flush(): void {
 	scheduled = false;
-	// Inspect freeze: drop stale microtasks armed before pauseUpdates() without
-	// draining. Resume re-arms via __inspectSetResumeFlush.
-	if (isInspectUpdatesPaused()) return;
+	// Inspect freeze: instrumented roots stay queued; inspect:false overlays
+	// still drain (mount effects + live updates). Resume re-arms via
+	// __inspectSetResumeFlush for any held application work.
+	if (isInspectUpdatesPaused()) {
+		flushWhileInspectPaused();
+		return;
+	}
 	// Re-entrancy backstop (see `inFlush`): a flush landing inside an active
 	// flush re-arms the scheduler instead of draining over the outer walk.
 	if (inFlush) {
@@ -35292,6 +35348,10 @@ export interface RootOptions {
 	 * `getOwnerFromHostInstance` or appear in the inspect root set. Useful for
 	 * tool overlays (e.g. `@octanejs/grab`) that mount their own root alongside
 	 * the application and must stay invisible to instrumentation.
+	 *
+	 * Exempt roots also keep scheduling while `pauseUpdates()` freezes
+	 * instrumented application trees, so overlay mount effects and live UI
+	 * updates continue during grab mode.
 	 *
 	 * Defaults to `true`.
 	 */

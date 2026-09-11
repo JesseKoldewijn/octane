@@ -122,6 +122,20 @@ export function onMount(fn: () => void): void {
 	});
 }
 
+// Solid defers createEffect until after the creating createRoot callback returns
+// (and nested effects created while flushing also defer to the end of that flush).
+let deferEffectDepth = 0;
+const deferredEffects: Effect[] = [];
+
+function flushDeferredEffects(): void {
+	while (deferredEffects.length > 0) {
+		const queued = deferredEffects.splice(0);
+		for (const effect of queued) {
+			if (!effect.disposed) effect.run();
+		}
+	}
+}
+
 export function createEffect(fn: () => void): void {
 	const effect: Effect = {
 		run: () => {},
@@ -147,7 +161,11 @@ export function createEffect(fn: () => void): void {
 		runCleanups(effect);
 		clearEffectDeps(effect);
 	});
-	effect.run();
+	if (deferEffectDepth > 0) {
+		deferredEffects.push(effect);
+	} else {
+		effect.run();
+	}
 }
 
 export function createMemo<T>(fn: () => T): Accessor<T> {
@@ -189,8 +207,16 @@ export function createRoot<T>(fn: (dispose: () => void) => T): T {
 	};
 	effectStack.push(rootEffect);
 	activeEffect = rootEffect;
+	deferEffectDepth += 1;
 	try {
-		return fn(dispose);
+		const result = fn(dispose);
+		deferEffectDepth -= 1;
+		if (deferEffectDepth === 0) flushDeferredEffects();
+		return result;
+	} catch (error) {
+		deferEffectDepth -= 1;
+		if (deferEffectDepth === 0) flushDeferredEffects();
+		throw error;
 	} finally {
 		effectStack.pop();
 		activeEffect = effectStack[effectStack.length - 1] ?? null;

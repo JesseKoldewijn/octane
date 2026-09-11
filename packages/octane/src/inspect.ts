@@ -209,11 +209,36 @@ export function isInstrumentationActive(): boolean {
 	return inspectRoots.size > 0;
 }
 
+/**
+ * True when `block` lives under a root registered with `createRoot` (default
+ * `inspect: true`). Roots created with `inspect: false` are invisible to
+ * instrumentation and are NOT pause targets — tool overlays (e.g. grab) must
+ * keep scheduling while `pauseUpdates()` freezes the application tree.
+ *
+ * Hot path: called only while updates are paused (cold). Walk is O(depth).
+ */
+export function isUnderInstrumentedInspectRoot(
+	block: {
+		parentBlock: object | null;
+	} | null,
+): boolean {
+	for (let current = block; current !== null; current = current.parentBlock as typeof current) {
+		if (inspectRoots.has(current as InspectBlockLike)) return true;
+	}
+	return false;
+}
+
 // Pause flag lives here; runtime.ts reads it through `isInspectUpdatesPaused()`
 // so the schedule hot path stays one function call without relying on live
 // ESM bindings through the Vitest/transform pipeline.
 let inspectUpdatesPaused = false;
 
+/**
+ * Freeze scheduled updates for instrumented application roots until the
+ * returned resume runs. Roots created with `{ inspect: false }` keep flushing
+ * (mount effects, props updates) so tool overlays remain live while the app is
+ * frozen.
+ */
 export function pauseUpdates(): () => void {
 	if (inspectUpdatesPaused) {
 		return () => {};

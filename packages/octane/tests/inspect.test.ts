@@ -9,6 +9,7 @@ import {
 } from '../src/inspect.js';
 import { InspectCounter, InspectLabel } from './_fixtures/inspect.tsrx';
 import { InspectOuter } from './_fixtures/inspect-nested.tsx';
+import { InspectOverlayEffect } from './_fixtures/inspect-overlay-effect.tsx';
 
 describe('octane/inspect', () => {
 	it('registers roots and maps host nodes to owners', () => {
@@ -55,6 +56,63 @@ describe('octane/inspect', () => {
 		await Promise.resolve();
 		expect(r.find('[data-testid="count"]').textContent).toBe('1');
 		r.unmount();
+	});
+
+	it('inspect:false roots keep mounting effects and updates while paused', async () => {
+		let setAppCount: ((n: number) => void) | undefined;
+		let setOverlayCount: ((n: number) => void) | undefined;
+		let overlayEffectRan = false;
+
+		const app = mount(InspectCounter, {
+			expose(set) {
+				setAppCount = set;
+			},
+		});
+
+		const overlayHost = document.createElement('div');
+		document.body.appendChild(overlayHost);
+		const overlayRoot = createRoot(overlayHost, { inspect: false });
+
+		const resume = pauseUpdates();
+
+		overlayRoot.render(InspectOverlayEffect, {
+			onMountEffect() {
+				overlayEffectRan = true;
+			},
+			expose(set) {
+				setOverlayCount = set;
+			},
+		});
+
+		// Post-paint passives + any scheduled overlay flush.
+		await Promise.resolve();
+		await Promise.resolve();
+		await new Promise<void>((resolve) => {
+			requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+		});
+
+		expect(overlayEffectRan, 'overlay useEffect must run while app is paused').toBe(true);
+		expect(overlayHost.querySelector('[data-testid="overlay-effect"]')).not.toBeNull();
+
+		setOverlayCount!(7);
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(
+			overlayHost.querySelector('[data-testid="overlay-effect"]')!.getAttribute('data-count'),
+		).toBe('7');
+
+		setAppCount!(1);
+		await Promise.resolve();
+		expect(app.find('[data-testid="count"]').textContent).toBe('0');
+
+		resume();
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(app.find('[data-testid="count"]').textContent).toBe('1');
+
+		overlayRoot.unmount();
+		overlayHost.remove();
+		app.unmount();
 	});
 
 	it('createRoot with inspect:false skips inspect registration', () => {
