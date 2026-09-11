@@ -1,12 +1,18 @@
 /** @jsxImportSource octane */
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'octane';
+import {
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from 'octane';
 import type { Position } from '../../types.js';
 import { cn } from '../../utils/cn.js';
 import { loadToolbarState, saveToolbarState, type SnapEdge, type ToolbarState } from './state.js';
 import { IconSelect } from '../icons/icon-select.jsx';
 import { ToolbarActionButton } from './toolbar-action-button.jsx';
 import {
-	TOOLBAR_SNAP_MARGIN_PX,
 	TOOLBAR_FADE_IN_DELAY_MS,
 	TOOLBAR_COLLAPSE_ANIMATION_DURATION_MS,
 	TOOLBAR_DEFAULT_WIDTH_PX,
@@ -30,6 +36,7 @@ import {
 	calculateExpandedPositionFromCollapsed,
 	getCollapsedDimsForEdge,
 	getCollapsedPosition,
+	getEdgeAnchorFromRatio,
 	getPositionFromEdgeAndRatio,
 	getRatioFromPosition,
 	isHorizontalEdge,
@@ -84,7 +91,17 @@ export const Toolbar = (props: ToolbarProps) => {
 	const [, setPositionRatio, positionRatio] = useState(
 		savedState?.ratio ?? TOOLBAR_DEFAULT_POSITION_RATIO,
 	);
-	const [, setPosition, position] = useState<Position>({ x: 0, y: 0 });
+	// Seed a ratio-based edge slot immediately so the first painted frame is not
+	// translate(0,0). With transform transitions enabled, a 0→final jump would
+	// animate across the viewport and become visible mid-slide during fade-in.
+	const [, setPosition, position] = useState<Position>(() =>
+		getPositionFromEdgeAndRatio(
+			savedState?.edge ?? 'bottom',
+			savedState?.ratio ?? TOOLBAR_DEFAULT_POSITION_RATIO,
+			TOOLBAR_DEFAULT_WIDTH_PX,
+			TOOLBAR_DEFAULT_HEIGHT_PX,
+		),
+	);
 	const [, setIsShaking, isShaking] = useState(false);
 	const [, setIsCollapseAnimating, isCollapseAnimating] = useState(false);
 	const [, setIsChevronPressed, isChevronPressed] = useState(false);
@@ -462,6 +479,57 @@ export const Toolbar = (props: ToolbarProps) => {
 		return collapsed ? computeCollapsedPosition() : position();
 	};
 
+	const applyInitialPosition = () => {
+		const rect = containerRef.current?.getBoundingClientRect();
+		const hasMeasurableRect = Boolean(rect && rect.width > 0 && rect.height > 0);
+
+		if (savedState) {
+			if (hasMeasurableRect && rect) {
+				expandedDimensions.current = { width: rect.width, height: rect.height };
+			}
+			setIsCollapsed(savedState.collapsed);
+			setPosition(
+				getPositionFromEdgeAndRatio(
+					savedState.edge,
+					savedState.ratio,
+					expandedDimensions.current.width,
+					expandedDimensions.current.height,
+				),
+			);
+			return;
+		}
+
+		if (hasMeasurableRect && rect) {
+			expandedDimensions.current = { width: rect.width, height: rect.height };
+			setPosition(
+				getPositionFromEdgeAndRatio(
+					'bottom',
+					TOOLBAR_DEFAULT_POSITION_RATIO,
+					rect.width,
+					rect.height,
+				),
+			);
+			setPositionRatio(TOOLBAR_DEFAULT_POSITION_RATIO);
+			return;
+		}
+
+		setPosition(
+			getPositionFromEdgeAndRatio(
+				'bottom',
+				TOOLBAR_DEFAULT_POSITION_RATIO,
+				expandedDimensions.current.width,
+				expandedDimensions.current.height,
+			),
+		);
+		setPositionRatio(TOOLBAR_DEFAULT_POSITION_RATIO);
+	};
+
+	// Layout-phase anchor so the first painted frame already uses the measured
+	// size (and ratio center-line) instead of waiting on a passive effect.
+	useLayoutEffect(() => {
+		applyInitialPosition();
+	}, []);
+
 	useEffect(() => {
 		const cleanups: Array<() => void> = [];
 
@@ -469,49 +537,7 @@ export const Toolbar = (props: ToolbarProps) => {
 			props.onContainerRef?.(containerRef.current);
 		}
 
-		const rect = containerRef.current?.getBoundingClientRect();
-		const viewport = getVisualViewport();
-		// The host's shadow DOM may still be detached from <body> when this
-		// synchronous measurement runs (mountRoot defers attachment to
-		// DOMContentLoaded, the renderer's dynamic import can resolve earlier).
-		// A detached element returns a 0 rect, which would poison
-		// expandedDimensions and place the toolbar off-screen. The ResizeObserver
-		// installed below adopts the real size as soon as layout commits.
-		const hasMeasurableRect = Boolean(rect && rect.width > 0 && rect.height > 0);
-
-		// Because isCollapsed defaults to false the element is always rendered
-		// expanded on initial mount, so rect reflects expanded dimensions here
-		// regardless of savedState.collapsed. Using it for collapsed dimensions
-		// would make the toolbar too wide after restoring a collapsed state.
-		if (savedState) {
-			if (hasMeasurableRect && rect) {
-				expandedDimensions.current = { width: rect.width, height: rect.height };
-			}
-			setIsCollapsed(savedState.collapsed);
-			const newPosition = getPositionFromEdgeAndRatio(
-				savedState.edge,
-				savedState.ratio,
-				expandedDimensions.current.width,
-				expandedDimensions.current.height,
-			);
-			setPosition(newPosition);
-		} else if (hasMeasurableRect && rect) {
-			expandedDimensions.current = { width: rect.width, height: rect.height };
-			setPosition({
-				x: viewport.offsetLeft + (viewport.width - rect.width) / 2,
-				y: viewport.offsetTop + viewport.height - rect.height - TOOLBAR_SNAP_MARGIN_PX,
-			});
-			setPositionRatio(TOOLBAR_DEFAULT_POSITION_RATIO);
-		} else {
-			const defaultPosition = getPositionFromEdgeAndRatio(
-				'bottom',
-				TOOLBAR_DEFAULT_POSITION_RATIO,
-				expandedDimensions.current.width,
-				expandedDimensions.current.height,
-			);
-			setPosition(defaultPosition);
-			setPositionRatio(TOOLBAR_DEFAULT_POSITION_RATIO);
-		}
+		applyInitialPosition();
 
 		if (props.onSubscribeToStateChanges) {
 			const unsubscribe = props.onSubscribeToStateChanges((state: ToolbarState) => {
@@ -559,6 +585,14 @@ export const Toolbar = (props: ToolbarProps) => {
 		window.addEventListener('resize', handleResize);
 		window.visualViewport?.addEventListener('resize', handleResize);
 		window.visualViewport?.addEventListener('scroll', handleResize);
+		// Re-anchor when the classic scrollbar gutter appears/disappears after
+		// content overflow changes — that updates clientWidth without always
+		// firing window.resize.
+		if (typeof ResizeObserver !== 'undefined') {
+			const layoutViewportObserver = new ResizeObserver(() => handleResize());
+			layoutViewportObserver.observe(document.documentElement);
+			cleanups.push(() => layoutViewportObserver.disconnect());
+		}
 		// Scoped re-anchoring only matters when init() was given a container
 		// (`container` is public library API, not demo-only); unscoped pages —
 		// the normal case — register nothing and pay nothing on scroll. The scope
@@ -646,6 +680,12 @@ export const Toolbar = (props: ToolbarProps) => {
 	const shouldDim = (): boolean => Boolean(props.isActive) && !isInteracting();
 
 	const getTransitionClass = (): string => {
+		// Hold transform transitions until fade-in. Mount measures and ResizeObserver
+		// re-anchors while opacity is still 0; transitioning those updates would
+		// slide the toolbar in from an off-center slot as it becomes visible.
+		if (!isVisible()) {
+			return '';
+		}
 		// Drag must follow the pointer frame-to-frame; any transform transition
 		// here would lag the toolbar behind the cursor.
 		if (isResizing() || isDragging) {
@@ -677,6 +717,23 @@ export const Toolbar = (props: ToolbarProps) => {
 		}
 	};
 
+	// Snapped placement anchors on the ratio center-line and uses translate(-50%)
+	// so a stale/fallback width cannot shift the visible center. Drag/snap keep
+	// top-left tracking so the pill stays glued to the pointer.
+	const getToolbarTransform = (): string => {
+		const scale = shouldDim() ? 0.97 : 1;
+		const pos = currentPosition();
+		if (isDragging || isSnapping) {
+			return `translate(${pos.x}px, ${pos.y}px) scale(${scale})`;
+		}
+		const edge = snapEdge();
+		const anchor = getEdgeAnchorFromRatio(edge, positionRatio());
+		if (isHorizontalEdge(edge)) {
+			return `translate(calc(${anchor}px - 50%), ${pos.y}px) scale(${scale})`;
+		}
+		return `translate(${pos.x}px, calc(${anchor}px - 50%)) scale(${scale})`;
+	};
+
 	return (
 		<div
 			ref={containerRef}
@@ -692,7 +749,7 @@ export const Toolbar = (props: ToolbarProps) => {
 			)}
 			style={{
 				zIndex: Z_INDEX_OVERLAY,
-				transform: `translate(${currentPosition().x}px, ${currentPosition().y}px) scale(${shouldDim() ? 0.97 : 1})`,
+				transform: getToolbarTransform(),
 				transformOrigin: getTransformOrigin(),
 				opacity: !isVisible() ? 0 : shouldDim() ? 0.55 : 1,
 			}}

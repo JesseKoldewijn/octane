@@ -19,18 +19,25 @@ export const getVisualViewport = (): VisualViewportInfo => {
 		};
 	}
 
+	// Prefer the layout viewport (`clientWidth` / `clientHeight`) so fixed chrome
+	// centers against the same box as the page content. `window.innerWidth`
+	// includes the classic scrollbar gutter; when a scrollbar appears after mount
+	// without a resize event the toolbar would otherwise stay shifted relative to
+	// the content column. `visualViewport` still supplies pinch-zoom offsets.
+	const layoutWidth = document.documentElement.clientWidth || window.innerWidth;
+	const layoutHeight = document.documentElement.clientHeight || window.innerHeight;
 	const visualViewport = window.visualViewport;
 	if (visualViewport) {
 		return {
-			width: visualViewport.width,
-			height: visualViewport.height,
+			width: layoutWidth,
+			height: layoutHeight,
 			offsetLeft: visualViewport.offsetLeft,
 			offsetTop: visualViewport.offsetTop,
 		};
 	}
 	return {
-		width: window.innerWidth,
-		height: window.innerHeight,
+		width: layoutWidth,
+		height: layoutHeight,
 		offsetLeft: 0,
 		offsetTop: 0,
 	};

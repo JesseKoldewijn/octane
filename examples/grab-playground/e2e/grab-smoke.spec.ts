@@ -65,6 +65,24 @@ test('activates grab and mounts the overlay host', async ({ page }) => {
 		.toBe(true);
 });
 
+test('toolbar is horizontally centered when it first becomes visible', async ({ page }) => {
+	const handle = await page.waitForFunction(() => {
+		const host = [...document.querySelectorAll('*')].find(
+			(node) => node.getAttribute?.('data-react-grab') != null,
+		);
+		const toolbar = host?.shadowRoot?.querySelector('[data-react-grab-toolbar]');
+		if (!toolbar) return null;
+		const opacity = Number.parseFloat(getComputedStyle(toolbar).opacity);
+		if (!(opacity > 0.2)) return null;
+		const rect = toolbar.getBoundingClientRect();
+		return {
+			offsetFromCenter: rect.left + rect.width / 2 - document.documentElement.clientWidth / 2,
+		};
+	});
+	const metrics = (await handle.jsonValue()) as { offsetFromCenter: number };
+	expect(Math.abs(metrics.offsetFromCenter)).toBeLessThan(2);
+});
+
 test('toolbar collapse chevron toggles without jumping sideways', async ({ page }) => {
 	await expect
 		.poll(async () =>

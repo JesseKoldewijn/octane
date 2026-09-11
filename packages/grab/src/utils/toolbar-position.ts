@@ -22,6 +22,17 @@ export const getCollapsedDimsForEdge = (edge: SnapEdge): { width: number; height
 	};
 };
 
+/** Center-line along the free axis for a snapped edge (width/height independent). */
+export const getEdgeAnchorFromRatio = (edge: SnapEdge, ratio: number): number => {
+	const viewport = getVisualViewport();
+	if (isHorizontalEdge(edge)) {
+		const track = Math.max(0, viewport.width - TOOLBAR_SNAP_MARGIN_PX * 2);
+		return viewport.offsetLeft + TOOLBAR_SNAP_MARGIN_PX + track * ratio;
+	}
+	const track = Math.max(0, viewport.height - TOOLBAR_SNAP_MARGIN_PX * 2);
+	return viewport.offsetTop + TOOLBAR_SNAP_MARGIN_PX + track * ratio;
+};
+
 export const getPositionFromEdgeAndRatio = (
 	edge: SnapEdge,
 	ratio: number,
@@ -44,22 +55,25 @@ export const getPositionFromEdgeAndRatio = (
 	);
 
 	if (isHorizontalEdge(edge)) {
-		const availableWidth = Math.max(0, viewportWidth - elementWidth - TOOLBAR_SNAP_MARGIN_PX * 2);
-		const positionX = Math.min(
-			maxX,
-			Math.max(minX, viewport.offsetLeft + TOOLBAR_SNAP_MARGIN_PX + availableWidth * ratio),
-		);
+		// Anchor on the ratio center-line, then convert to a top-left. Ratio 0.5
+		// therefore lands on the layout viewport center even when `elementWidth`
+		// is a stale fallback (translateX(-50%) at render uses the same anchor).
+		const anchorX = getEdgeAnchorFromRatio(edge, ratio);
+		const half = elementWidth / 2;
+		const minCenter = minX + half;
+		const maxCenter = maxX + half;
+		const centerX = maxCenter >= minCenter ? clampToRange(anchorX, minCenter, maxCenter) : anchorX;
 		const positionY = edge === 'top' ? minY : maxY;
-		return { x: positionX, y: positionY };
+		return { x: centerX - half, y: positionY };
 	}
 
-	const availableHeight = Math.max(0, viewportHeight - elementHeight - TOOLBAR_SNAP_MARGIN_PX * 2);
-	const positionY = Math.min(
-		maxY,
-		Math.max(minY, viewport.offsetTop + TOOLBAR_SNAP_MARGIN_PX + availableHeight * ratio),
-	);
+	const anchorY = getEdgeAnchorFromRatio(edge, ratio);
+	const half = elementHeight / 2;
+	const minCenter = minY + half;
+	const maxCenter = maxY + half;
+	const centerY = maxCenter >= minCenter ? clampToRange(anchorY, minCenter, maxCenter) : anchorY;
 	const positionX = edge === 'left' ? minX : maxX;
-	return { x: positionX, y: positionY };
+	return { x: positionX, y: centerY - half };
 };
 
 export const getRatioFromPosition = (
@@ -74,19 +88,18 @@ export const getRatioFromPosition = (
 	const viewportHeight = viewport.height;
 
 	if (isHorizontalEdge(edge)) {
-		const availableWidth = viewportWidth - elementWidth - TOOLBAR_SNAP_MARGIN_PX * 2;
-		if (availableWidth <= 0) return TOOLBAR_DEFAULT_POSITION_RATIO;
+		const track = viewportWidth - TOOLBAR_SNAP_MARGIN_PX * 2;
+		if (track <= 0) return TOOLBAR_DEFAULT_POSITION_RATIO;
+		const centerX = positionX + elementWidth / 2;
 		return Math.max(
 			0,
-			Math.min(1, (positionX - viewport.offsetLeft - TOOLBAR_SNAP_MARGIN_PX) / availableWidth),
+			Math.min(1, (centerX - viewport.offsetLeft - TOOLBAR_SNAP_MARGIN_PX) / track),
 		);
 	}
-	const availableHeight = viewportHeight - elementHeight - TOOLBAR_SNAP_MARGIN_PX * 2;
-	if (availableHeight <= 0) return TOOLBAR_DEFAULT_POSITION_RATIO;
-	return Math.max(
-		0,
-		Math.min(1, (positionY - viewport.offsetTop - TOOLBAR_SNAP_MARGIN_PX) / availableHeight),
-	);
+	const track = viewportHeight - TOOLBAR_SNAP_MARGIN_PX * 2;
+	if (track <= 0) return TOOLBAR_DEFAULT_POSITION_RATIO;
+	const centerY = positionY + elementHeight / 2;
+	return Math.max(0, Math.min(1, (centerY - viewport.offsetTop - TOOLBAR_SNAP_MARGIN_PX) / track));
 };
 
 interface Dimensions {
